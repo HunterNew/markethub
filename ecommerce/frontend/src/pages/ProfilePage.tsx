@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react'
-import { User, Mail, Phone, Shield, Calendar, MapPin, Plus, Trash2, Edit2, Check } from 'lucide-react'
+import { User, Mail, Phone, Shield, Calendar, MapPin, Plus, Trash2, Edit2, Check, FileText, Building2, Upload } from 'lucide-react'
 import api from '../api/client'
 import { useAuth } from '../context/AuthContext'
 import { CustomerLayout, VendorLayout, AdminLayout } from '../components/layout/DashboardLayout'
@@ -248,8 +248,167 @@ export function CustomerProfilePage() {
   return <CustomerLayout><ProfileContent /></CustomerLayout>
 }
 
+function VendorDocumentsSection() {
+  const [vendor, setVendor] = useState<any>(null)
+  const [loading, setLoading] = useState(true)
+  const [saving, setSaving] = useState(false)
+  const [form, setForm] = useState({
+    contactPhone: '', gstNumber: '', fssaiNumber: '',
+    gstCertificateUrl: '', fssaiCertificateUrl: '',
+    bankAccountName: '', bankAccountNumber: '', bankIfsc: '', bankName: ''
+  })
+
+  useEffect(() => {
+    api.get('/vendor/profile').then(r => {
+      const v = r.data.vendor
+      setVendor(v)
+      setForm({
+        contactPhone: v.contact_phone || '',
+        gstNumber: v.gst_number || '',
+        fssaiNumber: v.fssai_number || '',
+        gstCertificateUrl: v.gst_certificate_url || '',
+        fssaiCertificateUrl: v.fssai_certificate_url || '',
+        bankAccountName: v.bank_account_name || '',
+        bankAccountNumber: v.bank_account_number || '',
+        bankIfsc: v.bank_ifsc || '',
+        bankName: v.bank_name || '',
+      })
+    }).catch(() => {}).finally(() => setLoading(false))
+  }, [])
+
+  const handleSave = async () => {
+    setSaving(true)
+    try {
+      await api.put('/vendor/profile', form)
+      toast.success('Vendor documents updated!')
+    } catch {
+      toast.error('Failed to update')
+    } finally { setSaving(false) }
+  }
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>, field: 'gstCertificateUrl' | 'fssaiCertificateUrl') => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    const fd = new FormData()
+    fd.append('image', file)
+    try {
+      const res = await api.post('/upload', fd, { headers: { 'Content-Type': 'multipart/form-data' } })
+      setForm(prev => ({ ...prev, [field]: res.data.url }))
+      toast.success('File uploaded!')
+    } catch {
+      toast.error('Upload failed')
+    }
+    e.target.value = ''
+  }
+
+  if (loading) return <div className="card p-6 animate-pulse"><div className="h-48 bg-gray-200 rounded-xl" /></div>
+
+  return (
+    <div className="space-y-6">
+      {/* Contact Phone */}
+      <div className="card p-6">
+        <h2 className="font-bold text-gray-900 mb-4 flex items-center gap-2"><Phone size={18} className="text-primary-500" /> Contact Phone</h2>
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Phone Number *</label>
+          <input className="input" value={form.contactPhone} onChange={e => setForm({ ...form, contactPhone: e.target.value })} placeholder="9876543210" />
+        </div>
+      </div>
+
+      {/* GST & FSSAI */}
+      <div className="card p-6">
+        <h2 className="font-bold text-gray-900 mb-4 flex items-center gap-2"><FileText size={18} className="text-primary-500" /> Business Documents</h2>
+        <div className="space-y-4">
+          <div className="grid sm:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">GST Number</label>
+              <input className="input" value={form.gstNumber} onChange={e => setForm({ ...form, gstNumber: e.target.value })} placeholder="22AAAAA0000A1Z5" />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">FSSAI Number</label>
+              <input className="input" value={form.fssaiNumber} onChange={e => setForm({ ...form, fssaiNumber: e.target.value })} placeholder="12345678901234" />
+              <p className="text-xs text-gray-400 mt-1">Required for food vendors</p>
+            </div>
+          </div>
+          <div className="grid sm:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">GST Certificate</label>
+              <div className="flex items-center gap-2">
+                {form.gstCertificateUrl ? (
+                  <a href={form.gstCertificateUrl} target="_blank" rel="noopener noreferrer" className="text-sm text-primary-600 hover:underline truncate flex-1">
+                    {form.gstCertificateUrl.split('/').pop()}
+                  </a>
+                ) : (
+                  <span className="text-sm text-gray-400 flex-1">No file uploaded</span>
+                )}
+                <label className="btn-secondary text-xs py-1.5 px-3 cursor-pointer flex items-center gap-1">
+                  <Upload size={12} /> Upload
+                  <input type="file" accept="image/*,.pdf" className="hidden" onChange={e => handleFileUpload(e, 'gstCertificateUrl')} />
+                </label>
+              </div>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">FSSAI Certificate</label>
+              <div className="flex items-center gap-2">
+                {form.fssaiCertificateUrl ? (
+                  <a href={form.fssaiCertificateUrl} target="_blank" rel="noopener noreferrer" className="text-sm text-primary-600 hover:underline truncate flex-1">
+                    {form.fssaiCertificateUrl.split('/').pop()}
+                  </a>
+                ) : (
+                  <span className="text-sm text-gray-400 flex-1">No file uploaded</span>
+                )}
+                <label className="btn-secondary text-xs py-1.5 px-3 cursor-pointer flex items-center gap-1">
+                  <Upload size={12} /> Upload
+                  <input type="file" accept="image/*,.pdf" className="hidden" onChange={e => handleFileUpload(e, 'fssaiCertificateUrl')} />
+                </label>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Bank Details */}
+      <div className="card p-6">
+        <h2 className="font-bold text-gray-900 mb-4 flex items-center gap-2"><Building2 size={18} className="text-primary-500" /> Bank Details</h2>
+        <div className="grid sm:grid-cols-2 gap-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Account Holder Name</label>
+            <input className="input" value={form.bankAccountName} onChange={e => setForm({ ...form, bankAccountName: e.target.value })} placeholder="Account holder name" />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Account Number</label>
+            <input className="input" value={form.bankAccountNumber} onChange={e => setForm({ ...form, bankAccountNumber: e.target.value })} placeholder="1234567890" />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">IFSC Code</label>
+            <input className="input" value={form.bankIfsc} onChange={e => setForm({ ...form, bankIfsc: e.target.value })} placeholder="SBIN0001234" />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Bank Name</label>
+            <input className="input" value={form.bankName} onChange={e => setForm({ ...form, bankName: e.target.value })} placeholder="State Bank of India" />
+          </div>
+        </div>
+      </div>
+
+      <div className="flex justify-end">
+        <button onClick={handleSave} disabled={saving} className="btn-primary px-6">
+          {saving ? <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" /> : 'Save Documents'}
+        </button>
+      </div>
+    </div>
+  )
+}
+
 export function VendorProfilePage() {
-  return <VendorLayout><ProfileContent /></VendorLayout>
+  return (
+    <VendorLayout>
+      <ProfileContent />
+      <div className="px-8 pb-8 max-w-2xl">
+        <h2 className="text-xl font-bold text-gray-900 mb-2">Business Documents & Bank</h2>
+        <p className="text-gray-500 mb-6 text-sm">Update your GST, FSSAI, and bank details for payouts</p>
+        <VendorDocumentsSection />
+      </div>
+    </VendorLayout>
+  )
 }
 
 export function AdminProfilePage() {

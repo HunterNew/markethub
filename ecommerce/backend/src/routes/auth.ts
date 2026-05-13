@@ -3,6 +3,8 @@ import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
 import path from 'path';
 import fs from 'fs';
+import { v4 as uuidv4 } from 'uuid';
+import nodemailer from 'nodemailer';
 import pool from '../db/pool';
 import { authenticate, AuthRequest } from '../middleware/auth';
 
@@ -10,7 +12,7 @@ const router = Router();
 
 // POST /api/v1/auth/register
 router.post('/register', async (req: Request, res: Response) => {
-  const { email, password, role, firstName, lastName, storeName, description, contactEmail, contactPhone } = req.body;
+  const { email, password, role, firstName, lastName, storeName, description, contactEmail, contactPhone, gstNumber, fssaiNumber, bankAccountName, bankAccountNumber, bankIfsc, bankName } = req.body;
 
   if (!email || !password || !role) {
     return res.status(400).json({
@@ -70,10 +72,18 @@ router.post('/register', async (req: Request, res: Response) => {
           errors: [{ field: 'storeName', message: 'Required for vendor' }],
         });
       }
+      if (!contactPhone) {
+        return res.status(400).json({
+          status: 'error',
+          message: 'Contact phone is required for vendors',
+          errors: [{ field: 'contactPhone', message: 'Contact phone is required for vendors' }],
+        });
+      }
       const slug = storeName.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '') + '-' + userId;
       await conn.query(
-        'INSERT INTO vendors (user_id, store_name, store_slug, description, contact_email, contact_phone) VALUES (?, ?, ?, ?, ?, ?)',
-        [userId, storeName, slug, description || '', contactEmail || email, contactPhone || '']
+        `INSERT INTO vendors (user_id, store_name, store_slug, description, contact_email, contact_phone, gst_number, fssai_number, bank_account_name, bank_account_number, bank_ifsc, bank_name)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [userId, storeName, slug, description || '', contactEmail || email, contactPhone, gstNumber || null, fssaiNumber || null, bankAccountName || null, bankAccountNumber || null, bankIfsc || null, bankName || null]
       );
 
       // Create vendor image folder for CSV imports
@@ -287,6 +297,154 @@ router.delete('/addresses/:id', authenticate, async (req: AuthRequest, res: Resp
   try {
     await conn.query('DELETE FROM addresses WHERE id = ? AND user_id = ?', [req.params.id, req.user!.userId]);
     return res.json({ status: 'success', message: 'Address deleted.' });
+  } finally {
+    conn.release();
+  }
+});
+
+// POST /api/v1/auth/forgot-password
+router.post('/forgot-password', async (req: Request, res: Response) => {
+  const { email } = req.body;
+
+  if (!email) {
+    return res.status(400).json({
+      status: 'error',
+      message: 'Email is required.',
+      errors: [{ field: 'email', message: 'Email is required' }],
+    });
+  }
+
+  const conn = await pool.getConnection();
+  try {
+    const [users] = await conn.query(
+      'SELECT id FROM users WHERE email = ?',
+      [email.toLowerCase()]
+    ) as any[];
+
+    if (users.length > 0) {
+      const user = users[0];
+      const token = uuidv4();
+      const expiresAt = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
+
+      await conn.query(
+        'INSERT INTO password_reset_tokens (user_id, token, expires_at) VALUES (?, ?, ?)',
+        [user.id, token, expiresAt]
+      );
+
+      // Send email
+      const transporter = nodemailer.createTransport({
+        host: process.env.SMTP_HOST,
+        port: Number(process.env.SMTP_PORT) || 587,
+        secure: false,
+        auth: {
+          user: process.env.SMTP_USER,
+          pass: process.env.SMTP_PASS,
+        },
+      });
+
+      const resetLink = `${process.env.FRONTEND_URL}/auth/reset-password?token=${token}`;
+
+      await transporter.sendMail({
+        from: process.env.SMTP_FROM || 'noreply@marketplace.com',
+        to: email.toLowerCase(),
+        subject: 'Reset Your Password - MarketHub',
+        html: `
+          <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto;">
+            <h2>Reset Your Password</h2>
+            <p>You requested a password reset. Click the link below to set a new password:</p>
+            <p><a href="${resetLink}" style="display: inline-block; padding: 12px 24px; background-color: #f97316; color: white; text-decoration: none; border-radius: 8px;">Reset Password</a></p>
+            <p>This link will expire in 1 hour.</p>
+            <p>If you didn't request this, you can safely ignore this email.</p>
+          </div>
+        `,
+      });
+
+      return res.json({
+        status: 'success',
+        message: 'Password reset link sent to your email.',
+        emailFound: true,
+      });
+    }
+
+    // Email not found
+    return res.status(404).json({
+      status: 'error',
+      message: 'No account found with this email. Please create a new account.',
+      emailFound: false,
+    });
+  } catch (err) {
+    console.error('Forgot password error:', err);
+    return res.status(500).json({
+      status: 'error',
+      message: 'Something went wrong. Please try again.',
+    });
+  } finally {
+    conn.release();
+  }
+});
+
+// POST /api/v1/auth/reset-password
+router.post('/reset-password', async (req: Request, res: Response) => {
+  const { token, newPassword } = req.body;
+
+  if (!token || !newPassword) {
+    return res.status(400).json({
+      status: 'error',
+      message: 'Token and new password are required.',
+      errors: [],
+    });
+  }
+
+  if (newPassword.length < 6) {
+    return res.status(400).json({
+      status: 'error',
+      message: 'Password must be at least 6 characters.',
+      errors: [{ field: 'newPassword', message: 'Minimum 6 characters' }],
+    });
+  }
+
+  const conn = await pool.getConnection();
+  try {
+    const [tokens] = await conn.query(
+      'SELECT id, user_id, expires_at, used FROM password_reset_tokens WHERE token = ?',
+      [token]
+    ) as any[];
+
+    if (tokens.length === 0) {
+      return res.status(400).json({
+        status: 'error',
+        message: 'Invalid or expired reset token.',
+        errors: [],
+      });
+    }
+
+    const resetToken = tokens[0];
+
+    if (resetToken.used) {
+      return res.status(400).json({
+        status: 'error',
+        message: 'This reset token has already been used.',
+        errors: [],
+      });
+    }
+
+    if (new Date(resetToken.expires_at) < new Date()) {
+      return res.status(400).json({
+        status: 'error',
+        message: 'This reset token has expired.',
+        errors: [],
+      });
+    }
+
+    const passwordHash = await bcrypt.hash(newPassword, 10);
+
+    await conn.query('UPDATE users SET password_hash = ? WHERE id = ?', [passwordHash, resetToken.user_id]);
+    await conn.query('UPDATE password_reset_tokens SET used = true WHERE id = ?', [resetToken.id]);
+
+    return res.json({
+      status: 'success',
+      message: 'Password has been reset successfully.',
+    });
   } finally {
     conn.release();
   }

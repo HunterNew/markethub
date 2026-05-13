@@ -235,20 +235,31 @@ export function VendorProducts() {
                     <button type="button" onClick={() => setField('images', [...form.images, ''])}
                       className="text-sm text-primary-500 hover:text-primary-700 flex items-center gap-1"><Plus size={14} /> Add URL</button>
                   )}
-                  {form.images.length < 5 && (
+                  {form.images.filter(u => u.trim()).length < 5 && (
                     <label className="text-sm text-blue-500 hover:text-blue-700 flex items-center gap-1 cursor-pointer">
-                      <Upload size={14} /> Upload file
-                      <input type="file" accept="image/*" className="hidden" onChange={async (e) => {
-                        const file = e.target.files?.[0]
-                        if (!file) return
-                        const fd = new FormData(); fd.append('image', file)
-                        try {
-                          const res = await api.post('/upload', fd, { headers: { 'Content-Type': 'multipart/form-data' } })
-                          const imgs = [...form.images.filter(u => u.trim()), res.data.url]
-                          if (form.images.length === 1 && !form.images[0].trim()) setField('images', [res.data.url])
-                          else setField('images', imgs)
-                          toast.success('Image uploaded!')
-                        } catch { toast.error('Upload failed') }
+                      <Upload size={14} /> Upload files
+                      <input type="file" accept="image/*" multiple className="hidden" onChange={async (e) => {
+                        const files = e.target.files
+                        if (!files || files.length === 0) return
+                        const currentImages = form.images.filter(u => u.trim())
+                        const slotsAvailable = 5 - currentImages.length
+                        const filesToUpload = Array.from(files).slice(0, slotsAvailable)
+                        if (filesToUpload.length === 0) { toast.error('Maximum 5 images allowed'); return }
+                        let uploaded = 0
+                        const newUrls: string[] = []
+                        for (const file of filesToUpload) {
+                          const fd = new FormData(); fd.append('image', file)
+                          try {
+                            const res = await api.post('/upload', fd, { headers: { 'Content-Type': 'multipart/form-data' } })
+                            newUrls.push(res.data.url)
+                            uploaded++
+                          } catch { /* skip failed */ }
+                        }
+                        if (uploaded > 0) {
+                          const allImgs = [...currentImages, ...newUrls]
+                          setField('images', allImgs.length > 0 ? allImgs : [''])
+                          toast.success(`${uploaded} image${uploaded > 1 ? 's' : ''} uploaded!`)
+                        } else { toast.error('Upload failed') }
                         e.target.value = ''
                       }} />
                     </label>
@@ -296,11 +307,41 @@ export function VendorProducts() {
               <div className="bg-blue-50 rounded-xl p-4 text-sm text-blue-700 space-y-1">
                 <p className="font-semibold">Required columns: name, price (₹), category_name, stock</p>
                 <p>Optional: description, image_url, image_url_2, image_url_3, wholesale_enabled, wholesale_price, wholesale_min_qty</p>
-                <p className="text-xs text-blue-500 mt-1">Images: Use full URL (https://...) or just the filename (e.g., headphones.jpg) if you've uploaded images to your vendor folder.</p>
+                <p className="text-xs text-blue-500 mt-1">Images: Use full URL (https://...) or just the filename (e.g., headphones.jpg) from your uploaded images below.</p>
               </div>
+
+              {/* Bulk Image Upload */}
+              <div className="border border-dashed border-gray-300 rounded-xl p-4 bg-gray-50">
+                <h4 className="text-sm font-semibold text-gray-700 mb-2 flex items-center gap-1.5"><Upload size={14} /> Step 1: Upload Product Images</h4>
+                <p className="text-xs text-gray-500 mb-3">Upload all your product images first. Then use the filenames in your CSV.</p>
+                <label className="flex items-center justify-center gap-2 px-4 py-3 bg-white border border-gray-200 rounded-lg cursor-pointer hover:border-primary-300 hover:bg-orange-50 transition-colors">
+                  <Upload size={16} className="text-primary-500" />
+                  <span className="text-sm font-medium text-gray-700">Select Images (bulk)</span>
+                  <input type="file" accept="image/*" multiple className="hidden" onChange={async (e) => {
+                    const files = e.target.files
+                    if (!files || files.length === 0) return
+                    const fileList = Array.from(files)
+                    let uploaded = 0
+                    const names: string[] = []
+                    for (const file of fileList) {
+                      const fd = new FormData(); fd.append('image', file)
+                      try {
+                        const res = await api.post('/upload/vendor-images', fd, { headers: { 'Content-Type': 'multipart/form-data' } })
+                        names.push(res.data.filename)
+                        uploaded++
+                      } catch { /* skip failed */ }
+                    }
+                    if (uploaded > 0) {
+                      toast.success(`${uploaded} image${uploaded > 1 ? 's' : ''} uploaded! Use these filenames in your CSV: ${names.join(', ')}`)
+                    } else { toast.error('Upload failed') }
+                    e.target.value = ''
+                  }} />
+                </label>
+              </div>
+
               <button onClick={downloadTemplate} className="btn-secondary text-sm w-full justify-center"><Download size={14} /> Download Example Template</button>
-              <div><label className="label">Paste CSV Data</label>
-                <textarea className="input font-mono text-xs resize-none" rows={8} value={csvData} onChange={e => setCsvData(e.target.value)} placeholder="name,price,category_name,stock&#10;Product 1,999,Electronics,50" /></div>
+              <div><label className="label">Step 2: Paste CSV Data</label>
+                <textarea className="input font-mono text-xs resize-none" rows={8} value={csvData} onChange={e => setCsvData(e.target.value)} placeholder="name,price,category_name,stock,image_url&#10;Headphones,2999,Electronics,50,headphones.jpg" /></div>
               <div className="flex gap-3">
                 <button onClick={() => setShowImport(false)} className="btn-secondary">Cancel</button>
                 <button onClick={handleImport} disabled={importLoading || !csvData.trim()} className="btn-primary flex-1 justify-center">

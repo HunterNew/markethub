@@ -1,8 +1,9 @@
 import React, { useState } from 'react'
-import { Link, useNavigate, useLocation } from 'react-router-dom'
-import { Eye, EyeOff, Store, Mail, Lock, User, Phone } from 'lucide-react'
+import { Link, useNavigate, useLocation, useSearchParams } from 'react-router-dom'
+import { Eye, EyeOff, Store, Mail, Lock, User, ArrowLeft, CheckCircle, Phone, FileText, Building2 } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext'
 import toast from '../../components/ui/Toast'
+import api from '../../api/client'
 
 export function LoginPage() {
   const { login } = useAuth()
@@ -66,6 +67,11 @@ export function LoginPage() {
                 </button>
               </div>
             </div>
+            <div className="flex justify-end">
+              <Link to="/auth/forgot-password" className="text-xs text-primary-600 hover:text-primary-700 font-medium">
+                Forgot Password?
+              </Link>
+            </div>
             <button type="submit" disabled={loading} className="btn-primary w-full justify-center py-3 text-base">
               {loading ? <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" /> : 'Sign In'}
             </button>
@@ -101,7 +107,7 @@ export function RegisterPage() {
   const { register } = useAuth()
   const navigate = useNavigate()
   const [role, setRole] = useState<'customer'|'vendor'>('customer')
-  const [form, setForm] = useState({ firstName:'', lastName:'', email:'', password:'', phone:'', storeName:'', storeDescription:'' })
+  const [form, setForm] = useState({ firstName:'', lastName:'', email:'', password:'', phone:'', storeName:'', storeDescription:'', contactPhone:'', gstNumber:'', fssaiNumber:'', bankAccountName:'', bankAccountNumber:'', bankIfsc:'', bankName:'' })
   const [showPass, setShowPass] = useState(false)
   const [loading, setLoading] = useState(false)
 
@@ -109,9 +115,12 @@ export function RegisterPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    if (role === 'vendor' && !form.contactPhone.trim()) {
+      return toast.error('Contact phone is required for vendors')
+    }
     setLoading(true)
     try {
-      await register({ ...form, role })
+      await register({ ...form, role, description: form.storeDescription })
       toast.success('Account created!')
       const user = JSON.parse(localStorage.getItem('user') || '{}')
       navigate(user.role === 'vendor' ? '/vendor' : '/')
@@ -186,9 +195,52 @@ export function RegisterPage() {
                   </div>
                 </div>
                 <div>
+                  <label className="label">Contact Phone *</label>
+                  <div className="relative">
+                    <Phone size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                    <input required value={form.contactPhone} onChange={e => set('contactPhone', e.target.value)} placeholder="9876543210" className="input pl-9 text-sm" />
+                  </div>
+                </div>
+                <div>
                   <label className="label">Store Description</label>
                   <textarea value={form.storeDescription} onChange={e => set('storeDescription', e.target.value)} rows={2}
                     placeholder="Tell customers about your store..." className="input text-sm resize-none" />
+                </div>
+                <div>
+                  <label className="label">GST Number</label>
+                  <div className="relative">
+                    <FileText size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                    <input value={form.gstNumber} onChange={e => set('gstNumber', e.target.value)} placeholder="22AAAAA0000A1Z5" className="input pl-9 text-sm" />
+                  </div>
+                </div>
+                <div>
+                  <label className="label">FSSAI Number</label>
+                  <div className="relative">
+                    <FileText size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                    <input value={form.fssaiNumber} onChange={e => set('fssaiNumber', e.target.value)} placeholder="12345678901234" className="input pl-9 text-sm" />
+                  </div>
+                  <p className="text-xs text-gray-400 mt-1">Required for food vendors</p>
+                </div>
+                <div className="border border-gray-200 rounded-xl p-4 space-y-3">
+                  <p className="text-sm font-medium text-gray-700 flex items-center gap-1.5"><Building2 size={14} className="text-gray-400" /> Bank Details <span className="text-xs text-gray-400 font-normal">(optional)</span></p>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="label text-xs">Account Name</label>
+                      <input value={form.bankAccountName} onChange={e => set('bankAccountName', e.target.value)} placeholder="Account holder name" className="input text-sm" />
+                    </div>
+                    <div>
+                      <label className="label text-xs">Account Number</label>
+                      <input value={form.bankAccountNumber} onChange={e => set('bankAccountNumber', e.target.value)} placeholder="1234567890" className="input text-sm" />
+                    </div>
+                    <div>
+                      <label className="label text-xs">IFSC Code</label>
+                      <input value={form.bankIfsc} onChange={e => set('bankIfsc', e.target.value)} placeholder="SBIN0001234" className="input text-sm" />
+                    </div>
+                    <div>
+                      <label className="label text-xs">Bank Name</label>
+                      <input value={form.bankName} onChange={e => set('bankName', e.target.value)} placeholder="State Bank of India" className="input text-sm" />
+                    </div>
+                  </div>
                 </div>
               </>
             )}
@@ -201,6 +253,196 @@ export function RegisterPage() {
             Already have an account?{' '}
             <Link to="/auth/login" className="text-primary-600 font-semibold hover:text-primary-700">Sign in</Link>
           </p>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+export function ForgotPasswordPage() {
+  const [email, setEmail] = useState('')
+  const [loading, setLoading] = useState(false)
+  const [submitted, setSubmitted] = useState(false)
+  const [notFound, setNotFound] = useState(false)
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setLoading(true)
+    setNotFound(false)
+    try {
+      await api.post('/auth/forgot-password', { email })
+      setSubmitted(true)
+    } catch (err: any) {
+      if (err.response?.status === 404) {
+        setNotFound(true)
+      } else {
+        toast.error(err.response?.data?.message || 'Something went wrong')
+      }
+    } finally { setLoading(false) }
+  }
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-orange-50 to-white flex items-center justify-center p-4">
+      <div className="w-full max-w-md">
+        <div className="text-center mb-8">
+          <Link to="/" className="inline-flex items-center gap-2 mb-6">
+            <div className="w-10 h-10 bg-gradient-to-br from-primary-500 to-primary-700 rounded-xl flex items-center justify-center">
+              <Store size={20} className="text-white" />
+            </div>
+            <span className="font-bold text-gray-900 text-xl">Market<span className="text-primary-500">Hub</span></span>
+          </Link>
+          <h1 className="text-2xl font-bold text-gray-900">Reset your password</h1>
+          <p className="text-gray-500 text-sm mt-1">We'll send you a link to reset your password</p>
+        </div>
+
+        <div className="card p-8">
+          {submitted ? (
+            <div className="text-center py-4">
+              <CheckCircle size={48} className="text-green-500 mx-auto mb-4" />
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">Check your email</h3>
+              <p className="text-sm text-gray-500 mb-6">
+                We've sent a password reset link to <span className="font-medium text-gray-700">{email}</span>
+              </p>
+              <Link to="/auth/login" className="btn-primary inline-flex items-center gap-2 justify-center py-2.5 px-6">
+                <ArrowLeft size={16} /> Back to Sign In
+              </Link>
+            </div>
+          ) : (
+            <>
+              {notFound && (
+                <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-xl text-sm text-red-700">
+                  No account found with this email.{' '}
+                  <Link to="/auth/register" className="font-semibold text-primary-600 hover:text-primary-700 underline">
+                    Create a new account
+                  </Link>
+                </div>
+              )}
+              <form onSubmit={handleSubmit} className="space-y-5">
+                <div>
+                  <label className="label">Email address</label>
+                  <div className="relative">
+                    <Mail size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" />
+                    <input type="email" value={email} onChange={e => setEmail(e.target.value)} required
+                      placeholder="you@example.com" className="input pl-10" />
+                  </div>
+                </div>
+                <button type="submit" disabled={loading} className="btn-primary w-full justify-center py-3 text-base">
+                  {loading ? <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" /> : 'Send Reset Link'}
+                </button>
+              </form>
+              <p className="text-center text-sm text-gray-500 mt-4">
+                <Link to="/auth/login" className="text-primary-600 font-semibold hover:text-primary-700 inline-flex items-center gap-1">
+                  <ArrowLeft size={14} /> Back to Sign In
+                </Link>
+              </p>
+            </>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+export function ResetPasswordPage() {
+  const [searchParams] = useSearchParams()
+  const navigate = useNavigate()
+  const token = searchParams.get('token') || ''
+  const [newPassword, setNewPassword] = useState('')
+  const [confirmPassword, setConfirmPassword] = useState('')
+  const [showPass, setShowPass] = useState(false)
+  const [loading, setLoading] = useState(false)
+  const [success, setSuccess] = useState(false)
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (newPassword !== confirmPassword) {
+      toast.error('Passwords do not match')
+      return
+    }
+    if (newPassword.length < 6) {
+      toast.error('Password must be at least 6 characters')
+      return
+    }
+    setLoading(true)
+    try {
+      await api.post('/auth/reset-password', { token, newPassword })
+      setSuccess(true)
+      toast.success('Password reset successfully!')
+      setTimeout(() => navigate('/auth/login'), 3000)
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || 'Failed to reset password')
+    } finally { setLoading(false) }
+  }
+
+  if (!token) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-orange-50 to-white flex items-center justify-center p-4">
+        <div className="w-full max-w-md text-center">
+          <div className="card p-8">
+            <h2 className="text-xl font-bold text-gray-900 mb-2">Invalid Reset Link</h2>
+            <p className="text-sm text-gray-500 mb-6">This password reset link is invalid or has expired.</p>
+            <Link to="/auth/forgot-password" className="btn-primary inline-flex items-center gap-2 justify-center py-2.5 px-6">
+              Request a new link
+            </Link>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-orange-50 to-white flex items-center justify-center p-4">
+      <div className="w-full max-w-md">
+        <div className="text-center mb-8">
+          <Link to="/" className="inline-flex items-center gap-2 mb-6">
+            <div className="w-10 h-10 bg-gradient-to-br from-primary-500 to-primary-700 rounded-xl flex items-center justify-center">
+              <Store size={20} className="text-white" />
+            </div>
+            <span className="font-bold text-gray-900 text-xl">Market<span className="text-primary-500">Hub</span></span>
+          </Link>
+          <h1 className="text-2xl font-bold text-gray-900">Set new password</h1>
+          <p className="text-gray-500 text-sm mt-1">Enter your new password below</p>
+        </div>
+
+        <div className="card p-8">
+          {success ? (
+            <div className="text-center py-4">
+              <CheckCircle size={48} className="text-green-500 mx-auto mb-4" />
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">Password reset!</h3>
+              <p className="text-sm text-gray-500 mb-6">
+                Your password has been updated. Redirecting to login...
+              </p>
+              <Link to="/auth/login" className="btn-primary inline-flex items-center gap-2 justify-center py-2.5 px-6">
+                <ArrowLeft size={16} /> Go to Sign In
+              </Link>
+            </div>
+          ) : (
+            <form onSubmit={handleSubmit} className="space-y-5">
+              <div>
+                <label className="label">New Password</label>
+                <div className="relative">
+                  <Lock size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" />
+                  <input type={showPass ? 'text' : 'password'} value={newPassword} onChange={e => setNewPassword(e.target.value)} required
+                    minLength={6} placeholder="Min 6 characters" className="input pl-10 pr-10" />
+                  <button type="button" onClick={() => setShowPass(!showPass)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
+                    {showPass ? <EyeOff size={16} /> : <Eye size={16} />}
+                  </button>
+                </div>
+              </div>
+              <div>
+                <label className="label">Confirm Password</label>
+                <div className="relative">
+                  <Lock size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" />
+                  <input type={showPass ? 'text' : 'password'} value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)} required
+                    minLength={6} placeholder="Repeat your password" className="input pl-10" />
+                </div>
+              </div>
+              <button type="submit" disabled={loading} className="btn-primary w-full justify-center py-3 text-base">
+                {loading ? <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" /> : 'Reset Password'}
+              </button>
+            </form>
+          )}
         </div>
       </div>
     </div>

@@ -12,6 +12,42 @@ async function getVendor(conn: any, userId: number) {
   return vendors.length > 0 ? vendors[0] : null;
 }
 
+// ============ VENDOR PROFILE / DOCUMENTS ============
+router.get('/profile', authenticate, requireRole('vendor'), async (req: AuthRequest, res: Response) => {
+  const conn = await pool.getConnection();
+  try {
+    const vendor = await getVendor(conn, req.user!.userId);
+    if (!vendor) return res.status(403).json({ status: 'error', message: 'Vendor not found', errors: [] });
+    return res.json({ status: 'success', vendor });
+  } finally {
+    conn.release();
+  }
+});
+
+router.put('/profile', authenticate, requireRole('vendor'), async (req: AuthRequest, res: Response) => {
+  const { gstNumber, fssaiNumber, gstCertificateUrl, fssaiCertificateUrl, bankAccountName, bankAccountNumber, bankIfsc, bankName, contactPhone } = req.body;
+  const conn = await pool.getConnection();
+  try {
+    const vendor = await getVendor(conn, req.user!.userId);
+    if (!vendor) return res.status(403).json({ status: 'error', message: 'Vendor not found', errors: [] });
+
+    await conn.query(
+      `UPDATE vendors SET
+        gst_number = ?, fssai_number = ?, gst_certificate_url = ?, fssai_certificate_url = ?,
+        bank_account_name = ?, bank_account_number = ?, bank_ifsc = ?, bank_name = ?, contact_phone = ?
+      WHERE id = ?`,
+      [
+        gstNumber || null, fssaiNumber || null, gstCertificateUrl || null, fssaiCertificateUrl || null,
+        bankAccountName || null, bankAccountNumber || null, bankIfsc || null, bankName || null,
+        contactPhone || vendor.contact_phone, vendor.id
+      ]
+    );
+    return res.json({ status: 'success', message: 'Vendor profile updated.' });
+  } finally {
+    conn.release();
+  }
+});
+
 // ============ COUPONS ============
 router.get('/coupons', authenticate, requireRole('vendor'), async (req: AuthRequest, res: Response) => {
   const conn = await pool.getConnection();

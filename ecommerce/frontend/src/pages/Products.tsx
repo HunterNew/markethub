@@ -66,7 +66,7 @@ export default function ProductsPage() {
   const activeFilters = [search, categoryId, minPrice, maxPrice].filter(Boolean).length
   const selectedCategory = categories.find(c => String(c.id) === categoryId)
 
-  const FilterContent = () => (
+  const filterContent = (
     <>
       {/* Category Section */}
       <div className="border-b border-gray-100 pb-4 mb-4">
@@ -112,16 +112,22 @@ export default function ProductsPage() {
             <div className="flex gap-2 items-center">
               <div className="flex-1">
                 <label className="text-xs text-gray-500 mb-1 block">Min</label>
-                <input type="number" placeholder="₹0" value={localMin} onChange={e => setLocalMin(e.target.value)} className="input text-sm py-2" />
+                <input type="text" inputMode="numeric" pattern="[0-9]*" placeholder="₹0" value={localMin} onChange={e => setLocalMin(e.target.value.replace(/[^0-9]/g, ''))} className="input text-sm py-2" />
               </div>
               <span className="text-gray-300 mt-5">–</span>
               <div className="flex-1">
                 <label className="text-xs text-gray-500 mb-1 block">Max</label>
-                <input type="number" placeholder="₹99999" value={localMax} onChange={e => setLocalMax(e.target.value)} className="input text-sm py-2" />
+                <input type="text" inputMode="numeric" pattern="[0-9]*" placeholder="₹99999" value={localMax} onChange={e => setLocalMax(e.target.value.replace(/[^0-9]/g, ''))} className="input text-sm py-2" />
               </div>
             </div>
             <button
-              onClick={() => { updateFilter('minPrice', localMin); updateFilter('maxPrice', localMax) }}
+              onClick={() => {
+                const p = new URLSearchParams(searchParams)
+                if (localMin) p.set('minPrice', localMin); else p.delete('minPrice')
+                if (localMax) p.set('maxPrice', localMax); else p.delete('maxPrice')
+                p.delete('page')
+                setSearchParams(p)
+              }}
               className="w-full mt-3 py-2 bg-gray-900 hover:bg-gray-800 text-white text-sm font-medium rounded-lg transition-colors"
             >
               Apply Price
@@ -199,7 +205,7 @@ export default function ProductsPage() {
               <div className="flex items-center justify-between mb-4">
                 <h3 className="text-sm font-bold text-gray-900">Filters</h3>
               </div>
-              <FilterContent />
+              {filterContent}
             </div>
           </aside>
 
@@ -215,7 +221,7 @@ export default function ProductsPage() {
               <button onClick={() => setFiltersOpen(false)} className="p-1.5 hover:bg-gray-100 rounded-lg"><X size={18} /></button>
             </div>
             <div className="p-4 overflow-y-auto h-[calc(100%-120px)]">
-              <FilterContent />
+              {filterContent}
             </div>
             <div className="absolute bottom-0 left-0 right-0 p-4 border-t border-gray-100 bg-white">
               <button onClick={() => setFiltersOpen(false)} className="w-full py-2.5 bg-primary-500 hover:bg-primary-600 text-white font-semibold rounded-xl transition-colors">

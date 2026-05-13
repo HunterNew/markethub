@@ -243,13 +243,48 @@ export function AdminVendors() {
 
         <Modal open={!!detailVendor} onClose={() => setDetailVendor(null)} title="Vendor Details">
           {detailVendor && (
-            <div className="space-y-3 text-sm">
+            <div className="space-y-4 text-sm">
               <div className="grid grid-cols-2 gap-2">
                 {[['Store', detailVendor.store_name], ['Owner', `${detailVendor.first_name} ${detailVendor.last_name}`], ['Email', detailVendor.email], ['Status', detailVendor.status], ['Products', detailVendor.product_count], ['Commission', detailVendor.commission_rate ? `${detailVendor.commission_rate}%` : 'Global rate']].map(([k, v]) => (
                   <div key={k as string}><p className="text-gray-400 text-xs">{k}</p><p className="font-medium text-gray-800">{v}</p></div>
                 ))}
               </div>
               {detailVendor.description && <div><p className="text-gray-400 text-xs">Description</p><p className="text-gray-700">{detailVendor.description}</p></div>}
+
+              {/* Contact & Documents */}
+              {detailVendor.contact_phone && (
+                <div><p className="text-gray-400 text-xs">Contact Phone</p><p className="font-medium text-gray-800">{detailVendor.contact_phone}</p></div>
+              )}
+
+              {(detailVendor.gst_number || detailVendor.fssai_number) && (
+                <div className="border-t border-gray-100 pt-3">
+                  <p className="text-xs font-semibold text-gray-500 uppercase mb-2">Business Documents</p>
+                  <div className="grid grid-cols-2 gap-2">
+                    {detailVendor.gst_number && <div><p className="text-gray-400 text-xs">GST Number</p><p className="font-medium text-gray-800">{detailVendor.gst_number}</p></div>}
+                    {detailVendor.fssai_number && <div><p className="text-gray-400 text-xs">FSSAI Number</p><p className="font-medium text-gray-800">{detailVendor.fssai_number}</p></div>}
+                  </div>
+                  <div className="grid grid-cols-2 gap-2 mt-2">
+                    {detailVendor.gst_certificate_url && (
+                      <div><p className="text-gray-400 text-xs">GST Certificate</p><a href={detailVendor.gst_certificate_url} target="_blank" rel="noopener noreferrer" className="text-primary-600 hover:underline text-xs">View Certificate</a></div>
+                    )}
+                    {detailVendor.fssai_certificate_url && (
+                      <div><p className="text-gray-400 text-xs">FSSAI Certificate</p><a href={detailVendor.fssai_certificate_url} target="_blank" rel="noopener noreferrer" className="text-primary-600 hover:underline text-xs">View Certificate</a></div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {(detailVendor.bank_account_name || detailVendor.bank_account_number) && (
+                <div className="border-t border-gray-100 pt-3">
+                  <p className="text-xs font-semibold text-gray-500 uppercase mb-2">Bank Details</p>
+                  <div className="grid grid-cols-2 gap-2">
+                    {detailVendor.bank_account_name && <div><p className="text-gray-400 text-xs">Account Name</p><p className="font-medium text-gray-800">{detailVendor.bank_account_name}</p></div>}
+                    {detailVendor.bank_account_number && <div><p className="text-gray-400 text-xs">Account Number</p><p className="font-medium text-gray-800">{detailVendor.bank_account_number}</p></div>}
+                    {detailVendor.bank_ifsc && <div><p className="text-gray-400 text-xs">IFSC Code</p><p className="font-medium text-gray-800">{detailVendor.bank_ifsc}</p></div>}
+                    {detailVendor.bank_name && <div><p className="text-gray-400 text-xs">Bank Name</p><p className="font-medium text-gray-800">{detailVendor.bank_name}</p></div>}
+                  </div>
+                </div>
+              )}
             </div>
           )}
         </Modal>

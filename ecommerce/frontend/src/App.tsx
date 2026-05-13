@@ -13,7 +13,7 @@ import ProductDetail from './pages/ProductDetail'
 import CartPage from './pages/Cart'
 import CheckoutPage from './pages/Checkout'
 import VendorStorePage from './pages/VendorStore'
-import { LoginPage, RegisterPage } from './pages/auth/Auth'
+import { LoginPage, RegisterPage, ForgotPasswordPage, ResetPasswordPage } from './pages/auth/Auth'
 import {
   CustomerDashboard, CustomerOrdersPage,
   CustomerOrderDetailPage, OrderConfirmationPage
@@ -48,6 +48,8 @@ export default function App() {
             {/* Auth pages - no header/footer */}
             <Route path="/auth/login" element={<LoginPage />} />
             <Route path="/auth/register" element={<RegisterPage />} />
+            <Route path="/auth/forgot-password" element={<ForgotPasswordPage />} />
+            <Route path="/auth/reset-password" element={<ResetPasswordPage />} />
 
             {/* Public pages with header/footer */}
             <Route path="/" element={<MainLayout><HomePage /></MainLayout>} />
