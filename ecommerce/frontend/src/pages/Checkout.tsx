@@ -6,6 +6,12 @@ import { formatCurrency } from '../utils/helpers'
 import api from '../api/client'
 import toast from '../components/ui/Toast'
 
+declare global {
+  interface Window {
+    Razorpay: any
+  }
+}
+
 const STEPS = ['Address', 'Payment', 'Review']
 
 export default function CheckoutPage() {
@@ -59,9 +65,75 @@ export default function CheckoutPage() {
   }
 
   const placeOrder = async () => {
+    if (payMethod === 'razorpay') {
+      setLoading(true)
+      try {
+        // Step 1: Create Razorpay order
+        const { data } = await api.post('/orders/razorpay-order', { amount: finalTotal })
+        const razorpayOrderId = data.order_id
+
+        // Step 2: Open Razorpay checkout popup
+        const options = {
+          key: 'rzp_test_SpEw8OA2Q6EfK6',
+          amount: data.amount,
+          currency: data.currency,
+          name: 'MarketHub',
+          description: 'Order Payment',
+          order_id: razorpayOrderId,
+          prefill: {
+            name: address.name,
+            contact: address.phone,
+          },
+          handler: async (response: { razorpay_order_id: string; razorpay_payment_id: string; razorpay_signature: string }) => {
+            try {
+              // Step 3: Verify payment
+              await api.post('/orders/razorpay-verify', {
+                razorpay_order_id: response.razorpay_order_id,
+                razorpay_payment_id: response.razorpay_payment_id,
+                razorpay_signature: response.razorpay_signature,
+              })
+
+              // Step 4: Place the order
+              const res = await api.post('/orders', {
+                shippingAddress: address,
+                paymentMethod: payMethod,
+                razorpayOrderId: response.razorpay_order_id,
+                razorpayPaymentId: response.razorpay_payment_id,
+                couponCode: appliedCoupon?.code,
+              })
+              await refreshCart()
+              toast.success('Order placed successfully!')
+              navigate(`/order-confirmation/${res.data.orderId}`)
+            } catch (err: any) {
+              toast.error(err.response?.data?.message || 'Payment verification failed')
+            }
+          },
+          modal: {
+            ondismiss: () => {
+              setLoading(false)
+              toast.error('Payment cancelled')
+            },
+          },
+          theme: {
+            color: '#f97316',
+          },
+        }
+
+        const rzp = new window.Razorpay(options)
+        rzp.on('payment.failed', (response: any) => {
+          setLoading(false)
+          toast.error(response.error?.description || 'Payment failed. Please try again.')
+        })
+        rzp.open()
+      } catch (err: any) {
+        setLoading(false)
+        toast.error(err.response?.data?.message || 'Failed to initiate payment')
+      }
+      return
+    }
+
     setLoading(true)
     try {
-      console.log('[CHECKOUT] Placing order with couponCode:', appliedCoupon?.code, 'appliedCoupon:', appliedCoupon)
       const res = await api.post('/orders', {
         shippingAddress: address,
         paymentMethod: payMethod,
@@ -191,26 +263,39 @@ export default function CheckoutPage() {
                 <h2 className="font-bold text-gray-900 text-lg mb-5 flex items-center gap-2">
                   <CreditCard size={18} className="text-primary-500" /> Payment Method
                 </h2>
-                <div className="space-y-3">
-                  {[
-                    { id: 'cod', label: 'Cash on Delivery', desc: 'Pay when your order arrives', icon: '💵' },
-                    { id: 'stripe', label: 'Credit / Debit Card', desc: 'Secure payment via Stripe', icon: '💳' },
-                    { id: 'razorpay', label: 'UPI / Net Banking', desc: 'Pay via Razorpay', icon: '📱' },
-                  ].map(m => (
-                    <label key={m.id} className={`flex items-center gap-4 p-4 rounded-xl border-2 cursor-pointer transition-all ${payMethod === m.id ? 'border-primary-500 bg-orange-50' : 'border-gray-200 hover:border-gray-300'}`}>
-                      <input type="radio" name="payment" value={m.id} checked={payMethod === m.id as any}
-                        onChange={() => setPayMethod(m.id as any)} className="accent-primary-500" />
-                      <span className="text-2xl">{m.icon}</span>
-                      <div>
-                        <p className="font-semibold text-gray-800 text-sm">{m.label}</p>
-                        <p className="text-xs text-gray-400">{m.desc}</p>
-                      </div>
-                    </label>
-                  ))}
-                </div>
+                {(() => {
+                  const codAvailable = items.every(item => item.cod_enabled !== false && item.cod_enabled !== 0)
+                  const methods = [
+                    { id: 'cod', label: 'Cash on Delivery', desc: codAvailable ? 'Pay when your order arrives' : 'Not available for items in your cart', icon: '💵', disabled: !codAvailable },
+                    { id: 'stripe', label: 'Credit / Debit Card', desc: 'Secure payment via Stripe', icon: '💳', disabled: false },
+                    { id: 'razorpay', label: 'UPI / Net Banking', desc: 'Pay via Razorpay', icon: '📱', disabled: false },
+                  ]
+                  // If COD was selected but now unavailable, switch to razorpay
+                  if (!codAvailable && payMethod === 'cod') setPayMethod('razorpay')
+                  return (
+                    <div className="space-y-3">
+                      {methods.map(m => (
+                        <label key={m.id} className={`flex items-center gap-4 p-4 rounded-xl border-2 transition-all ${m.disabled ? 'opacity-50 cursor-not-allowed border-gray-100 bg-gray-50' : payMethod === m.id ? 'border-primary-500 bg-orange-50 cursor-pointer' : 'border-gray-200 hover:border-gray-300 cursor-pointer'}`}>
+                          <input type="radio" name="payment" value={m.id} checked={payMethod === m.id as any}
+                            onChange={() => !m.disabled && setPayMethod(m.id as any)} disabled={m.disabled} className="accent-primary-500" />
+                          <span className="text-2xl">{m.icon}</span>
+                          <div>
+                            <p className="font-semibold text-gray-800 text-sm">{m.label}</p>
+                            <p className="text-xs text-gray-400">{m.desc}</p>
+                          </div>
+                        </label>
+                      ))}
+                    </div>
+                  )
+                })()}
                 {payMethod === 'stripe' && (
                   <div className="mt-4 p-4 bg-blue-50 rounded-xl border border-blue-100 text-sm text-blue-700">
                     💡 Stripe integration ready. In production, add card details here.
+                  </div>
+                )}
+                {payMethod === 'razorpay' && (
+                  <div className="mt-4 p-4 bg-green-50 rounded-xl border border-green-100 text-sm text-green-700">
+                    📱 You'll be redirected to Razorpay to complete payment via UPI, Net Banking, or Wallet.
                   </div>
                 )}
                 <div className="flex gap-3 mt-6">

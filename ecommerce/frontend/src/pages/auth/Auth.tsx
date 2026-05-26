@@ -1,9 +1,11 @@
-import React, { useState } from 'react'
+import React, { useState, useRef } from 'react'
 import { Link, useNavigate, useLocation, useSearchParams } from 'react-router-dom'
 import { Eye, EyeOff, Store, Mail, Lock, User, ArrowLeft, CheckCircle, Phone, FileText, Building2 } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext'
 import toast from '../../components/ui/Toast'
 import api from '../../api/client'
+import { sendPhoneOTP, verifyPhoneOTP } from '../../utils/firebase'
+import type { ConfirmationResult } from 'firebase/auth'
 
 export function LoginPage() {
   const { login } = useAuth()
@@ -110,13 +112,99 @@ export function RegisterPage() {
   const [form, setForm] = useState({ firstName:'', lastName:'', email:'', password:'', phone:'', storeName:'', storeDescription:'', contactPhone:'', gstNumber:'', fssaiNumber:'', bankAccountName:'', bankAccountNumber:'', bankIfsc:'', bankName:'' })
   const [showPass, setShowPass] = useState(false)
   const [loading, setLoading] = useState(false)
+  const [otpStep, setOtpStep] = useState(false)
+  const [otp, setOtp] = useState('')
+  const [otpSending, setOtpSending] = useState(false)
+  const [otpVerified, setOtpVerified] = useState(false)
+  const [otpTimer, setOtpTimer] = useState(0)
+  // Phone OTP
+  const [phoneOtpStep, setPhoneOtpStep] = useState(false)
+  const [phoneOtp, setPhoneOtp] = useState('')
+  const [phoneOtpSending, setPhoneOtpSending] = useState(false)
+  const [phoneVerified, setPhoneVerified] = useState(false)
+  const [phoneOtpTimer, setPhoneOtpTimer] = useState(0)
+  const [confirmationResult, setConfirmationResult] = useState<ConfirmationResult | null>(null)
 
   const set = (k: string, v: string) => setForm(prev => ({ ...prev, [k]: v }))
 
+  // OTP countdown timer
+  React.useEffect(() => {
+    if (otpTimer > 0) {
+      const t = setTimeout(() => setOtpTimer(otpTimer - 1), 1000)
+      return () => clearTimeout(t)
+    }
+  }, [otpTimer])
+
+  React.useEffect(() => {
+    if (phoneOtpTimer > 0) {
+      const t = setTimeout(() => setPhoneOtpTimer(phoneOtpTimer - 1), 1000)
+      return () => clearTimeout(t)
+    }
+  }, [phoneOtpTimer])
+
+  const sendOtp = async () => {
+    if (!form.email) return toast.error('Enter your email first')
+    setOtpSending(true)
+    try {
+      await api.post('/auth/send-otp', { email: form.email, purpose: 'registration' })
+      toast.success('OTP sent to your email!')
+      setOtpStep(true)
+      setOtpTimer(60)
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || 'Failed to send OTP')
+    } finally { setOtpSending(false) }
+  }
+
+  const verifyOtp = async () => {
+    if (!otp || otp.length !== 6) return toast.error('Enter 6-digit OTP')
+    try {
+      await api.post('/auth/verify-otp', { email: form.email, code: otp })
+      toast.success('Email verified!')
+      setOtpVerified(true)
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || 'Invalid OTP')
+    }
+  }
+
+  const sendPhoneOtp = async () => {
+    const phone = form.phone || form.contactPhone
+    if (!phone) return toast.error('Enter phone number first')
+    setPhoneOtpSending(true)
+    try {
+      const result = await sendPhoneOTP(phone, 'recaptcha-container')
+      setConfirmationResult(result)
+      toast.success('OTP sent to your phone!')
+      setPhoneOtpStep(true)
+      setPhoneOtpTimer(60)
+    } catch (err: any) {
+      toast.error(err?.message || 'Failed to send SMS OTP')
+    } finally { setPhoneOtpSending(false) }
+  }
+
+  const verifyPhoneOtp = async () => {
+    if (!phoneOtp || phoneOtp.length !== 6) return toast.error('Enter 6-digit OTP')
+    if (!confirmationResult) return toast.error('Please resend OTP')
+    try {
+      const success = await verifyPhoneOTP(confirmationResult, phoneOtp)
+      if (success) {
+        toast.success('Phone verified!')
+        setPhoneVerified(true)
+      } else {
+        toast.error('Invalid OTP')
+      }
+    } catch {
+      toast.error('Verification failed')
+    }
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (role === 'vendor' && !form.contactPhone.trim()) {
-      return toast.error('Contact phone is required for vendors')
+    if (!otpVerified) {
+      return toast.error('Please verify your email first')
+    }
+    const phone = role === 'vendor' ? form.contactPhone : form.phone
+    if (!phone.trim()) {
+      return toast.error('Phone number is required')
     }
     setLoading(true)
     try {
@@ -172,8 +260,23 @@ export function RegisterPage() {
               <label className="label">Email *</label>
               <div className="relative">
                 <Mail size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-                <input type="email" required value={form.email} onChange={e => set('email', e.target.value)} placeholder="you@example.com" className="input pl-9 text-sm" />
+                <input type="email" required value={form.email} onChange={e => { set('email', e.target.value); setOtpVerified(false); setOtpStep(false) }} placeholder="you@example.com" className="input pl-9 pr-24 text-sm" disabled={otpVerified} />
+                {!otpVerified ? (
+                  <button type="button" onClick={sendOtp} disabled={otpSending || otpTimer > 0}
+                    className="absolute right-1 top-1/2 -translate-y-1/2 text-xs font-medium px-3 py-1.5 bg-primary-500 hover:bg-primary-600 text-white rounded-lg disabled:opacity-50 transition-colors">
+                    {otpSending ? '...' : otpTimer > 0 ? `${otpTimer}s` : 'Send OTP'}
+                  </button>
+                ) : (
+                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-green-600 font-medium">✓ Verified</span>
+                )}
               </div>
+              {otpStep && !otpVerified && (
+                <div className="mt-2 flex gap-2">
+                  <input type="text" maxLength={6} value={otp} onChange={e => setOtp(e.target.value.replace(/\D/g, ''))}
+                    placeholder="Enter 6-digit OTP" className="input text-sm flex-1 text-center tracking-widest font-mono" />
+                  <button type="button" onClick={verifyOtp} className="btn-primary text-xs px-4">Verify</button>
+                </div>
+              )}
             </div>
             <div>
               <label className="label">Password *</label>
@@ -185,6 +288,16 @@ export function RegisterPage() {
                 </button>
               </div>
             </div>
+            {/* Phone number - required */}
+            <div>
+              <label className="label">Phone Number *</label>
+              <div className="relative">
+                <Phone size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                <input type="tel" required value={role === 'vendor' ? form.contactPhone : form.phone}
+                  onChange={e => role === 'vendor' ? set('contactPhone', e.target.value) : set('phone', e.target.value)}
+                  placeholder="9876543210" className="input pl-9 text-sm" />
+              </div>
+            </div>
             {role === 'vendor' && (
               <>
                 <div>
@@ -192,13 +305,6 @@ export function RegisterPage() {
                   <div className="relative">
                     <Store size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
                     <input required value={form.storeName} onChange={e => set('storeName', e.target.value)} placeholder="Your Store Name" className="input pl-9 text-sm" />
-                  </div>
-                </div>
-                <div>
-                  <label className="label">Contact Phone *</label>
-                  <div className="relative">
-                    <Phone size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-                    <input required value={form.contactPhone} onChange={e => set('contactPhone', e.target.value)} placeholder="9876543210" className="input pl-9 text-sm" />
                   </div>
                 </div>
                 <div>

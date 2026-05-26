@@ -1,0 +1,1 @@
+ALTER TABLE vendors ADD COLUMN cod_enabled BOOLEAN DEFAULT true;

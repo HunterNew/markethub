@@ -34,10 +34,12 @@ export default function ProductCard({ product }: { product: Product }) {
   const [wishlisted, setWishlisted] = useState(false)
   const [addingToCart, setAddingToCart] = useState(false)
 
-  const displayPrice = product.has_variants && product.min_variant_price
-    ? product.min_variant_price
-    : product.is_on_sale && product.offer_price ? product.offer_price : product.price
-  const hasVariantPriceRange = product.has_variants && product.min_variant_price && product.max_variant_price && product.min_variant_price !== product.max_variant_price
+  const displayPrice = product.is_on_sale && product.offer_price
+    ? product.offer_price
+    : product.has_variants && product.min_variant_price
+      ? product.min_variant_price
+      : product.price
+  const hasVariantPriceRange = product.has_variants && product.min_variant_price && product.max_variant_price && product.min_variant_price !== product.max_variant_price && !product.is_on_sale
   const discount = product.is_on_sale && product.offer_price
     ? Math.round((1 - product.offer_price / product.price) * 100)
     : 0
@@ -76,8 +78,8 @@ export default function ProductCard({ product }: { product: Product }) {
         {/* Badges */}
         <div className="absolute top-2 left-2 flex flex-col gap-1">
           {!!product.is_on_sale && discount > 0 && (
-            <span className="bg-red-500 text-white text-xs font-bold px-2 py-0.5 rounded-full">
-              -{discount}%
+            <span className="bg-green-600 text-white text-xs font-bold px-2 py-0.5 rounded-full">
+              {discount}% OFF
             </span>
           )}
           {product.status === 'out_of_stock' && (
@@ -122,11 +124,9 @@ export default function ProductCard({ product }: { product: Product }) {
         <div className="flex items-center justify-between">
           <div>
             <div className="flex items-center gap-2">
-              {product.has_variants && product.min_variant_price ? (
+              {hasVariantPriceRange ? (
                 <span className="font-bold text-gray-900 text-base">
-                  {hasVariantPriceRange
-                    ? `${formatCurrency(product.min_variant_price)} - ${formatCurrency(product.max_variant_price!)}`
-                    : formatCurrency(product.min_variant_price)}
+                  {`${formatCurrency(product.min_variant_price!)} – ${formatCurrency(product.max_variant_price!)}`}
                 </span>
               ) : (
                 <>

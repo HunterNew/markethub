@@ -1,0 +1,12 @@
+CREATE TABLE IF NOT EXISTS return_requests (
+  id INT PRIMARY KEY AUTO_INCREMENT,
+  order_id INT NOT NULL,
+  user_id INT NOT NULL,
+  reason VARCHAR(500) NOT NULL,
+  status ENUM('pending', 'approved', 'rejected') DEFAULT 'pending',
+  vendor_note TEXT NULL,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  FOREIGN KEY (order_id) REFERENCES orders(id) ON DELETE CASCADE,
+  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+);

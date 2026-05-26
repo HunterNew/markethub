@@ -298,7 +298,12 @@ router.get('/withdrawals', authenticate, requireRole('admin'), async (req: AuthR
     const params: any[] = [];
     if (status) { where = 'WHERE w.status = ?'; params.push(status); }
     const [withdrawals] = await conn.query(
-      `SELECT w.*, v.store_name, u.email FROM withdrawals w JOIN vendors v ON v.id = w.vendor_id JOIN users u ON u.id = v.user_id ${where} ORDER BY w.created_at DESC`,
+      `SELECT w.*, v.store_name, v.bank_account_name, v.bank_account_number, v.bank_ifsc, v.bank_name, u.email
+      FROM withdrawals w
+      JOIN vendors v ON v.id = w.vendor_id
+      JOIN users u ON u.id = v.user_id
+      ${where}
+      ORDER BY w.created_at DESC`,
       params
     ) as any[];
     return res.json({ status: 'success', withdrawals });
@@ -328,11 +333,73 @@ router.patch('/withdrawals/:id/complete', authenticate, requireRole('admin'), as
 });
 
 router.patch('/withdrawals/:id/reject', authenticate, requireRole('admin'), async (req: AuthRequest, res: Response) => {
-  const { note } = req.body;
+  const { reason } = req.body;
   const conn = await pool.getConnection();
   try {
-    await conn.query('UPDATE withdrawals SET status = "rejected", note = ? WHERE id = ?', [note, req.params.id]);
+    await conn.query('UPDATE withdrawals SET status = "rejected", note = ? WHERE id = ?', [reason || null, req.params.id]);
     return res.json({ status: 'success', message: 'Withdrawal rejected.' });
+  } finally {
+    conn.release();
+  }
+});
+
+// ============ BANNERS ============
+router.get('/banners', authenticate, requireRole('admin'), async (req: AuthRequest, res: Response) => {
+  const conn = await pool.getConnection();
+  try {
+    const [banners] = await conn.query('SELECT * FROM homepage_banners ORDER BY sort_order ASC, id ASC') as any[];
+    return res.json({ status: 'success', banners });
+  } finally {
+    conn.release();
+  }
+});
+
+router.post('/banners', authenticate, requireRole('admin'), async (req: AuthRequest, res: Response) => {
+  const { image_url, title, subtitle, description, link_url, sort_order } = req.body;
+  if (!image_url) {
+    return res.status(400).json({ status: 'error', message: 'Image URL is required.', errors: [{ field: 'image_url', message: 'Required' }] });
+  }
+  const conn = await pool.getConnection();
+  try {
+    const [result] = await conn.query(
+      'INSERT INTO homepage_banners (image_url, title, subtitle, description, link_url, sort_order) VALUES (?, ?, ?, ?, ?, ?)',
+      [image_url, title || null, subtitle || null, description || null, link_url || null, sort_order || 0]
+    ) as any[];
+    return res.status(201).json({ status: 'success', message: 'Banner created.', bannerId: result.insertId });
+  } finally {
+    conn.release();
+  }
+});
+
+router.put('/banners/:id', authenticate, requireRole('admin'), async (req: AuthRequest, res: Response) => {
+  const { image_url, title, subtitle, description, link_url, sort_order, is_active } = req.body;
+  const conn = await pool.getConnection();
+  try {
+    const fields: string[] = [];
+    const params: any[] = [];
+    if (image_url !== undefined) { fields.push('image_url = ?'); params.push(image_url); }
+    if (title !== undefined) { fields.push('title = ?'); params.push(title || null); }
+    if (subtitle !== undefined) { fields.push('subtitle = ?'); params.push(subtitle || null); }
+    if (description !== undefined) { fields.push('description = ?'); params.push(description || null); }
+    if (link_url !== undefined) { fields.push('link_url = ?'); params.push(link_url || null); }
+    if (sort_order !== undefined) { fields.push('sort_order = ?'); params.push(sort_order); }
+    if (is_active !== undefined) { fields.push('is_active = ?'); params.push(is_active ? 1 : 0); }
+    if (fields.length === 0) {
+      return res.status(400).json({ status: 'error', message: 'No fields to update.', errors: [] });
+    }
+    params.push(req.params.id);
+    await conn.query(`UPDATE homepage_banners SET ${fields.join(', ')} WHERE id = ?`, params);
+    return res.json({ status: 'success', message: 'Banner updated.' });
+  } finally {
+    conn.release();
+  }
+});
+
+router.delete('/banners/:id', authenticate, requireRole('admin'), async (req: AuthRequest, res: Response) => {
+  const conn = await pool.getConnection();
+  try {
+    await conn.query('DELETE FROM homepage_banners WHERE id = ?', [req.params.id]);
+    return res.json({ status: 'success', message: 'Banner deleted.' });
   } finally {
     conn.release();
   }
@@ -378,6 +445,139 @@ router.patch('/coupons/:id/reactivate', authenticate, requireRole('admin'), asyn
   try {
     await conn.query('UPDATE coupons SET is_active = true WHERE id = ?', [req.params.id]);
     return res.json({ status: 'success', message: 'Coupon reactivated.' });
+  } finally {
+    conn.release();
+  }
+});
+
+// ============ PROMO CARDS ============
+router.get('/promo-cards', authenticate, requireRole('admin'), async (req: AuthRequest, res: Response) => {
+  const conn = await pool.getConnection();
+  try {
+    const [cards] = await conn.query('SELECT * FROM promo_cards ORDER BY sort_order ASC, id ASC') as any[];
+    return res.json({ status: 'success', cards });
+  } finally {
+    conn.release();
+  }
+});
+
+router.post('/promo-cards', authenticate, requireRole('admin'), async (req: AuthRequest, res: Response) => {
+  const { image_url, title, subtitle, link_url, sort_order } = req.body;
+  if (!image_url || !title) {
+    return res.status(400).json({ status: 'error', message: 'Image and title are required.', errors: [] });
+  }
+  const conn = await pool.getConnection();
+  try {
+    const [result] = await conn.query(
+      'INSERT INTO promo_cards (image_url, title, subtitle, link_url, sort_order) VALUES (?, ?, ?, ?, ?)',
+      [image_url, title, subtitle || null, link_url || null, sort_order || 0]
+    ) as any[];
+    return res.json({ status: 'success', message: 'Promo card created.', id: result.insertId });
+  } finally {
+    conn.release();
+  }
+});
+
+router.put('/promo-cards/:id', authenticate, requireRole('admin'), async (req: AuthRequest, res: Response) => {
+  const { image_url, title, subtitle, link_url, sort_order, is_active } = req.body;
+  const conn = await pool.getConnection();
+  try {
+    const fields: string[] = [];
+    const params: any[] = [];
+    if (image_url !== undefined) { fields.push('image_url = ?'); params.push(image_url); }
+    if (title !== undefined) { fields.push('title = ?'); params.push(title); }
+    if (subtitle !== undefined) { fields.push('subtitle = ?'); params.push(subtitle); }
+    if (link_url !== undefined) { fields.push('link_url = ?'); params.push(link_url); }
+    if (sort_order !== undefined) { fields.push('sort_order = ?'); params.push(sort_order); }
+    if (is_active !== undefined) { fields.push('is_active = ?'); params.push(is_active); }
+    if (fields.length === 0) return res.status(400).json({ status: 'error', message: 'No fields to update.', errors: [] });
+    params.push(req.params.id);
+    await conn.query(`UPDATE promo_cards SET ${fields.join(', ')} WHERE id = ?`, params);
+    return res.json({ status: 'success', message: 'Promo card updated.' });
+  } finally {
+    conn.release();
+  }
+});
+
+router.delete('/promo-cards/:id', authenticate, requireRole('admin'), async (req: AuthRequest, res: Response) => {
+  const conn = await pool.getConnection();
+  try {
+    await conn.query('DELETE FROM promo_cards WHERE id = ?', [req.params.id]);
+    return res.json({ status: 'success', message: 'Promo card deleted.' });
+  } finally {
+    conn.release();
+  }
+});
+
+// ============ NOTIFICATIONS ============
+
+// GET /api/v1/admin/notifications/customers - Get all customer emails for notification
+router.get('/notifications/customers', authenticate, requireRole('admin'), async (req: AuthRequest, res: Response) => {
+  const conn = await pool.getConnection();
+  try {
+    const [customers] = await conn.query(
+      'SELECT id, email, first_name, last_name, phone FROM users WHERE role = "customer" ORDER BY created_at DESC'
+    ) as any[];
+    return res.json({ status: 'success', customers, total: customers.length });
+  } finally {
+    conn.release();
+  }
+});
+
+// POST /api/v1/admin/notifications/send-email - Send email to all customers
+router.post('/notifications/send-email', authenticate, requireRole('admin'), async (req: AuthRequest, res: Response) => {
+  const { subject, message } = req.body;
+  if (!subject || !message) {
+    return res.status(400).json({ status: 'error', message: 'Subject and message are required.', errors: [] });
+  }
+
+  const conn = await pool.getConnection();
+  try {
+    const [customers] = await conn.query(
+      'SELECT email, first_name FROM users WHERE role = "customer"'
+    ) as any[];
+
+    if (customers.length === 0) {
+      return res.status(400).json({ status: 'error', message: 'No customers found.', errors: [] });
+    }
+
+    const nodemailer = require('nodemailer');
+    const transporter = nodemailer.createTransport({
+      host: process.env.SMTP_HOST,
+      port: Number(process.env.SMTP_PORT) || 587,
+      secure: false,
+      auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS },
+    });
+
+    let sent = 0;
+    let failed = 0;
+
+    for (const customer of customers as any[]) {
+      try {
+        await transporter.sendMail({
+          from: process.env.SMTP_FROM || 'noreply@marketplace.com',
+          to: customer.email,
+          subject: subject,
+          html: `
+            <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:20px;">
+              <div style="background:linear-gradient(135deg,#f97316,#ea580c);padding:20px;border-radius:12px;margin-bottom:20px;">
+                <h1 style="color:white;margin:0;font-size:24px;">MarketHub</h1>
+              </div>
+              <p style="color:#374151;">Hi ${customer.first_name || 'there'},</p>
+              <div style="background:#f9fafb;border-radius:8px;padding:20px;margin:16px 0;border:1px solid #e5e7eb;">
+                ${message.replace(/\n/g, '<br/>')}
+              </div>
+              <p style="color:#6b7280;font-size:12px;margin-top:20px;">You're receiving this because you're a registered customer on MarketHub.</p>
+            </div>
+          `,
+        });
+        sent++;
+      } catch {
+        failed++;
+      }
+    }
+
+    return res.json({ status: 'success', message: `Sent to ${sent} customers. ${failed > 0 ? `${failed} failed.` : ''}`, sent, failed });
   } finally {
     conn.release();
   }

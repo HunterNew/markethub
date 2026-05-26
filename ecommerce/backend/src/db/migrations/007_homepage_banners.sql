@@ -1,0 +1,11 @@
+CREATE TABLE IF NOT EXISTS homepage_banners (
+  id INT PRIMARY KEY AUTO_INCREMENT,
+  image_url VARCHAR(500) NOT NULL,
+  title VARCHAR(200) NULL,
+  subtitle VARCHAR(500) NULL,
+  description VARCHAR(500) NULL,
+  link_url VARCHAR(500) NULL,
+  sort_order INT DEFAULT 0,
+  is_active BOOLEAN DEFAULT true,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);

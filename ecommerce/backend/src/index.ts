@@ -53,6 +53,34 @@ app.use('/api/v1/reviews', reviewRoutes);
 app.use('/api/v1/categories', categoryRouter);
 app.use('/api/v1/search', searchRouter);
 
+// Public banners endpoint
+app.get('/api/v1/banners', async (req, res) => {
+  const { default: pool } = await import('./db/pool');
+  const conn = await pool.getConnection();
+  try {
+    const [banners] = await conn.query(
+      'SELECT id, image_url, title, subtitle, description, link_url FROM homepage_banners WHERE is_active = true ORDER BY sort_order ASC, id ASC'
+    ) as any[];
+    return res.json({ status: 'success', banners });
+  } finally {
+    conn.release();
+  }
+});
+
+// Public promo cards endpoint
+app.get('/api/v1/promo-cards', async (req, res) => {
+  const { default: pool } = await import('./db/pool');
+  const conn = await pool.getConnection();
+  try {
+    const [cards] = await conn.query(
+      'SELECT id, image_url, title, subtitle, link_url FROM promo_cards WHERE is_active = true ORDER BY sort_order ASC, id ASC'
+    ) as any[];
+    return res.json({ status: 'success', cards });
+  } finally {
+    conn.release();
+  }
+});
+
 // Vendor public store
 app.get('/api/v1/vendors/:slug', async (req, res) => {
   const { default: pool } = await import('./db/pool');
@@ -72,6 +100,16 @@ app.get('/api/v1/vendors/:slug', async (req, res) => {
 // Health check
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
+});
+
+// Config endpoint - expose public Razorpay key
+app.get('/api/v1/config/razorpay-key', (req, res) => {
+  res.json({ key: process.env.RAZORPAY_KEY_ID || '' });
+});
+
+// Config endpoint - admin support WhatsApp number
+app.get('/api/v1/config/support-contact', (req, res) => {
+  res.json({ whatsapp: process.env.ADMIN_WHATSAPP || '' });
 });
 
 // Global error handler

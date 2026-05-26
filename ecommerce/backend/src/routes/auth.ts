@@ -12,7 +12,7 @@ const router = Router();
 
 // POST /api/v1/auth/register
 router.post('/register', async (req: Request, res: Response) => {
-  const { email, password, role, firstName, lastName, storeName, description, contactEmail, contactPhone, gstNumber, fssaiNumber, bankAccountName, bankAccountNumber, bankIfsc, bankName } = req.body;
+  const { email, password, role, firstName, lastName, phone, storeName, description, contactEmail, contactPhone, gstNumber, fssaiNumber, bankAccountName, bankAccountNumber, bankIfsc, bankName } = req.body;
 
   if (!email || !password || !role) {
     return res.status(400).json({
@@ -23,6 +23,15 @@ router.post('/register', async (req: Request, res: Response) => {
         { field: 'password', message: !password ? 'Password is required' : '' },
         { field: 'role', message: !role ? 'Role is required' : '' },
       ].filter(e => e.message),
+    });
+  }
+
+  const userPhone = phone || contactPhone;
+  if (!userPhone) {
+    return res.status(400).json({
+      status: 'error',
+      message: 'Phone number is required.',
+      errors: [{ field: 'phone', message: 'Phone number is required' }],
     });
   }
 
@@ -56,9 +65,17 @@ router.post('/register', async (req: Request, res: Response) => {
 
     const passwordHash = await bcrypt.hash(password, 10);
 
+    // Check if email OTP was verified
+    const [verified] = await conn.query(
+      'SELECT id FROM otp_codes WHERE email = ? AND verified = true AND purpose = "registration" AND created_at > DATE_SUB(NOW(), INTERVAL 30 MINUTE) ORDER BY created_at DESC LIMIT 1',
+      [email.toLowerCase()]
+    ) as any[];
+
+    const emailVerified = verified.length > 0;
+
     const [result] = await conn.query(
-      'INSERT INTO users (email, password_hash, role, first_name, last_name) VALUES (?, ?, ?, ?, ?)',
-      [email.toLowerCase(), passwordHash, role, firstName || '', lastName || '']
+      'INSERT INTO users (email, password_hash, role, first_name, last_name, phone, email_verified) VALUES (?, ?, ?, ?, ?, ?, ?)',
+      [email.toLowerCase(), passwordHash, role, firstName || '', lastName || '', userPhone, emailVerified]
     ) as any[];
 
     const userId = result.insertId;
@@ -445,6 +462,162 @@ router.post('/reset-password', async (req: Request, res: Response) => {
       status: 'success',
       message: 'Password has been reset successfully.',
     });
+  } finally {
+    conn.release();
+  }
+});
+
+// ============ OTP VERIFICATION ============
+
+// POST /api/v1/auth/send-otp - Send OTP to email
+router.post('/send-otp', async (req: Request, res: Response) => {
+  const { email, purpose } = req.body;
+  if (!email) return res.status(400).json({ status: 'error', message: 'Email is required.', errors: [] });
+
+  const conn = await pool.getConnection();
+  try {
+    // Rate limit: max 5 OTPs per email per hour
+    const [recent] = await conn.query(
+      'SELECT COUNT(*) as cnt FROM otp_codes WHERE email = ? AND created_at > DATE_SUB(NOW(), INTERVAL 1 HOUR)',
+      [email.toLowerCase()]
+    ) as any[];
+    if (recent[0].cnt >= 5) {
+      return res.status(429).json({ status: 'error', message: 'Too many OTP requests. Try again later.', errors: [] });
+    }
+
+    // Generate 6-digit OTP
+    const code = String(Math.floor(100000 + Math.random() * 900000));
+
+    await conn.query(
+      'INSERT INTO otp_codes (email, code, type, purpose, expires_at) VALUES (?, ?, "email", ?, DATE_ADD(NOW(), INTERVAL 10 MINUTE))',
+      [email.toLowerCase(), code, purpose || 'registration']
+    );
+
+    // Send email
+    const transporter = nodemailer.createTransport({
+      host: process.env.SMTP_HOST,
+      port: Number(process.env.SMTP_PORT) || 587,
+      secure: false,
+      auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS },
+    });
+
+    await transporter.sendMail({
+      from: process.env.SMTP_FROM || 'noreply@marketplace.com',
+      to: email.toLowerCase(),
+      subject: 'Your MarketHub Verification Code',
+      html: `
+        <div style="font-family:Arial,sans-serif;max-width:400px;margin:0 auto;padding:20px;">
+          <h2 style="color:#f97316;">MarketHub</h2>
+          <p>Your verification code is:</p>
+          <div style="background:#f3f4f6;border-radius:8px;padding:20px;text-align:center;margin:20px 0;">
+            <span style="font-size:32px;font-weight:bold;letter-spacing:8px;color:#1f2937;">${code}</span>
+          </div>
+          <p style="color:#6b7280;font-size:14px;">This code expires in 10 minutes. Do not share it with anyone.</p>
+        </div>
+      `,
+    });
+
+    return res.json({ status: 'success', message: 'OTP sent to your email.' });
+  } catch (err: any) {
+    console.error('OTP send error:', err.message);
+    return res.status(500).json({ status: 'error', message: 'Failed to send OTP. Check email configuration.', errors: [] });
+  } finally {
+    conn.release();
+  }
+});
+
+// POST /api/v1/auth/verify-otp - Verify OTP
+router.post('/verify-otp', async (req: Request, res: Response) => {
+  const { email, code } = req.body;
+  if (!email || !code) return res.status(400).json({ status: 'error', message: 'Email and code are required.', errors: [] });
+
+  const conn = await pool.getConnection();
+  try {
+    const [otps] = await conn.query(
+      'SELECT id FROM otp_codes WHERE email = ? AND code = ? AND verified = false AND expires_at > NOW() ORDER BY created_at DESC LIMIT 1',
+      [email.toLowerCase(), code]
+    ) as any[];
+
+    if (otps.length === 0) {
+      return res.status(400).json({ status: 'error', message: 'Invalid or expired OTP.', errors: [] });
+    }
+
+    // Mark as verified
+    await conn.query('UPDATE otp_codes SET verified = true WHERE id = ?', [otps[0].id]);
+
+    // Mark user email as verified if user exists
+    await conn.query('UPDATE users SET email_verified = true WHERE email = ?', [email.toLowerCase()]);
+
+    return res.json({ status: 'success', message: 'OTP verified successfully.' });
+  } finally {
+    conn.release();
+  }
+});
+
+// POST /api/v1/auth/send-sms-otp - Send OTP via SMS (placeholder - needs SMS provider)
+router.post('/send-sms-otp', async (req: Request, res: Response) => {
+  const { phone, purpose } = req.body;
+  if (!phone) return res.status(400).json({ status: 'error', message: 'Phone number is required.', errors: [] });
+
+  // Check if SMS OTP is enabled
+  const conn = await pool.getConnection();
+  try {
+    const [settings] = await conn.query(
+      "SELECT value FROM platform_settings WHERE `key` = 'sms_otp_enabled'"
+    ) as any[];
+    const smsEnabled = settings.length > 0 && JSON.parse(settings[0].value) === true;
+
+    if (!smsEnabled) {
+      return res.status(400).json({ status: 'error', message: 'SMS OTP is not enabled.', errors: [] });
+    }
+
+    // Rate limit
+    const [recent] = await conn.query(
+      'SELECT COUNT(*) as cnt FROM otp_codes WHERE phone = ? AND created_at > DATE_SUB(NOW(), INTERVAL 1 HOUR)',
+      [phone]
+    ) as any[];
+    if (recent[0].cnt >= 5) {
+      return res.status(429).json({ status: 'error', message: 'Too many OTP requests. Try again later.', errors: [] });
+    }
+
+    const code = String(Math.floor(100000 + Math.random() * 900000));
+    const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
+
+    await conn.query(
+      'INSERT INTO otp_codes (phone, code, type, purpose, expires_at) VALUES (?, ?, "sms", ?, ?)',
+      [phone, code, purpose || 'registration', expiresAt]
+    );
+
+    // TODO: Integrate SMS provider (MSG91, Fast2SMS, Twilio)
+    // For now, log the OTP (remove in production)
+    console.log(`[SMS OTP] Phone: ${phone}, Code: ${code}`);
+
+    return res.json({ status: 'success', message: 'OTP sent to your phone.' });
+  } finally {
+    conn.release();
+  }
+});
+
+// POST /api/v1/auth/verify-sms-otp - Verify SMS OTP
+router.post('/verify-sms-otp', async (req: Request, res: Response) => {
+  const { phone, code } = req.body;
+  if (!phone || !code) return res.status(400).json({ status: 'error', message: 'Phone and code are required.', errors: [] });
+
+  const conn = await pool.getConnection();
+  try {
+    const [otps] = await conn.query(
+      'SELECT id FROM otp_codes WHERE phone = ? AND code = ? AND verified = false AND expires_at > NOW() ORDER BY created_at DESC LIMIT 1',
+      [phone, code]
+    ) as any[];
+
+    if (otps.length === 0) {
+      return res.status(400).json({ status: 'error', message: 'Invalid or expired OTP.', errors: [] });
+    }
+
+    await conn.query('UPDATE otp_codes SET verified = true WHERE id = ?', [otps[0].id]);
+    await conn.query('UPDATE users SET phone = ? WHERE phone IS NULL OR phone = ""', [phone]);
+
+    return res.json({ status: 'success', message: 'Phone verified successfully.' });
   } finally {
     conn.release();
   }

@@ -304,16 +304,59 @@ export default function Header() {
       {mobileOpen && (
         <div className="md:hidden border-t border-gray-100 bg-white p-4 animate-slide-up">
           {/* Mobile search */}
-          <div className="relative mb-4">
+          <div className="relative mb-4" ref={searchRef}>
             <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
             <input
               type="text"
               value={query}
-              onChange={(e) => setQuery(e.target.value)}
+              onChange={handleQueryChange}
+              onFocus={() => setShowDropdown(true)}
               onKeyDown={(e) => { if (e.key === 'Enter') { handleSearch(query); setMobileOpen(false) } }}
               placeholder="Search products..."
               className="input pl-9 pr-4 h-10 w-full text-sm"
             />
+            {/* Mobile search dropdown */}
+            {showDropdown && (
+              <div className="absolute top-full left-0 right-0 mt-1 bg-white rounded-xl border border-gray-100 shadow-xl z-50 overflow-hidden max-h-72 overflow-y-auto">
+                {query.length < 2 ? (
+                  <>
+                    {recentSearches.length > 0 && (
+                      <div className="p-3">
+                        <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Recent Searches</p>
+                        {recentSearches.map(term => (
+                          <div
+                            key={term}
+                            onClick={() => { setQuery(term); handleSearch(term); setMobileOpen(false) }}
+                            className="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-gray-50 cursor-pointer text-sm text-gray-700"
+                          >
+                            <Search size={14} className="text-gray-400" />
+                            {term}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </>
+                ) : suggestions.length > 0 ? (
+                  <div className="p-2">
+                    {suggestions.map((s: any) => (
+                      <div
+                        key={s.productId}
+                        onClick={() => { navigate(`/products/${s.productId}`); setMobileOpen(false); setShowDropdown(false) }}
+                        className="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-gray-50 cursor-pointer"
+                      >
+                        <Search size={14} className="text-gray-400 flex-shrink-0" />
+                        <div>
+                          <p className="text-sm text-gray-800 font-medium">{s.name}</p>
+                          <p className="text-xs text-gray-400">{s.categoryName}</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="p-4 text-center text-sm text-gray-400">No suggestions found</div>
+                )}
+              </div>
+            )}
           </div>
           <nav className="flex flex-col gap-1">
             <Link to="/products" onClick={() => setMobileOpen(false)} className="sidebar-link">All Products</Link>

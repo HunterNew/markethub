@@ -1,6 +1,6 @@
 import { Router, Response } from 'express';
 import pool from '../db/pool';
-import { authenticate, optionalAuth, AuthRequest } from '../middleware/auth';
+import { authenticate, optionalAuth, AuthRequest, requireRole } from '../middleware/auth';
 
 const router = Router();
 
@@ -62,7 +62,7 @@ router.post('/', authenticate, async (req: AuthRequest, res: Response) => {
     const [orderItems] = await conn.query(
       `SELECT oi.id FROM order_items oi
       JOIN orders o ON o.id = oi.order_id
-      WHERE oi.order_id = ? AND oi.product_id = ? AND o.user_id = ? AND o.status IN ('delivered', 'confirmed', 'shipped')`,
+      WHERE oi.order_id = ? AND oi.product_id = ? AND o.user_id = ? AND o.status NOT IN ('cancelled')`,
       [orderId, productId, req.user!.userId]
     ) as any[];
 
@@ -124,6 +124,81 @@ router.delete('/:id', authenticate, async (req: AuthRequest, res: Response) => {
   const conn = await pool.getConnection();
   try {
     await conn.query('DELETE FROM product_reviews WHERE id = ? AND user_id = ?', [req.params.id, req.user!.userId]);
+    return res.json({ status: 'success', message: 'Review deleted.' });
+  } finally {
+    conn.release();
+  }
+});
+
+// GET /api/v1/reviews/vendor - Vendor: see all reviews for their products
+router.get('/vendor', authenticate, requireRole('vendor'), async (req: AuthRequest, res: Response) => {
+  const conn = await pool.getConnection();
+  try {
+    const [vendors] = await conn.query('SELECT id FROM vendors WHERE user_id = ?', [req.user!.userId]) as any[];
+    if (vendors.length === 0) return res.status(403).json({ status: 'error', message: 'Vendor not found', errors: [] });
+
+    const [reviews] = await conn.query(
+      `SELECT r.*, u.first_name, u.last_name, p.name as product_name, pi.image_url as product_image
+       FROM product_reviews r
+       JOIN users u ON u.id = r.user_id
+       JOIN products p ON p.id = r.product_id AND p.vendor_id = ?
+       LEFT JOIN product_images pi ON pi.product_id = p.id AND pi.is_primary = true
+       ORDER BY r.created_at DESC`,
+      [vendors[0].id]
+    ) as any[];
+
+    // Stats
+    const [stats] = await conn.query(
+      `SELECT COUNT(*) as total, COALESCE(AVG(r.rating), 0) as avg_rating
+       FROM product_reviews r
+       JOIN products p ON p.id = r.product_id AND p.vendor_id = ?`,
+      [vendors[0].id]
+    ) as any[];
+
+    return res.json({
+      status: 'success',
+      reviews,
+      stats: { total: Number(stats[0].total), avgRating: Math.round(Number(stats[0].avg_rating) * 10) / 10 }
+    });
+  } finally {
+    conn.release();
+  }
+});
+
+// GET /api/v1/reviews/admin - Admin: see all reviews
+router.get('/admin', authenticate, requireRole('admin'), async (req: AuthRequest, res: Response) => {
+  const conn = await pool.getConnection();
+  try {
+    const [reviews] = await conn.query(
+      `SELECT r.*, u.first_name, u.last_name, u.email as customer_email,
+        p.name as product_name, v.store_name as vendor_name, pi.image_url as product_image
+       FROM product_reviews r
+       JOIN users u ON u.id = r.user_id
+       JOIN products p ON p.id = r.product_id
+       JOIN vendors v ON v.id = p.vendor_id
+       LEFT JOIN product_images pi ON pi.product_id = p.id AND pi.is_primary = true
+       ORDER BY r.created_at DESC`
+    ) as any[];
+
+    const [stats] = await conn.query(
+      `SELECT COUNT(*) as total, COALESCE(AVG(rating), 0) as avg_rating FROM product_reviews`
+    ) as any[];
+
+    return res.json({
+      status: 'success',
+      reviews,
+      stats: { total: Number(stats[0].total), avgRating: Math.round(Number(stats[0].avg_rating) * 10) / 10 }
+    });
+  } finally {
+    conn.release();
+  }
+});
+
+// DELETE /api/v1/reviews/admin/:id - Admin: delete any review
+router.delete('/admin/:id', authenticate, requireRole('admin'), async (req: AuthRequest, res: Response) => {
+  const conn = await pool.getConnection();
+  try {
+    await conn.query('DELETE FROM product_reviews WHERE id = ?', [req.params.id]);
     return res.json({ status: 'success', message: 'Review deleted.' });
   } finally {
     conn.release();

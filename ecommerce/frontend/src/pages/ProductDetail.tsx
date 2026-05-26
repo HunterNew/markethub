@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react'
 import { useParams, Link, useNavigate } from 'react-router-dom'
-import { ShoppingCart, Star, Store, Shield, Truck, ArrowLeft, Minus, Plus, Zap, Tag, ChevronLeft, ChevronRight } from 'lucide-react'
+import { ShoppingCart, Star, Store, Shield, Truck, ArrowLeft, Minus, Plus, Zap, Tag, ChevronLeft, ChevronRight, RefreshCw } from 'lucide-react'
 import api from '../api/client'
 import { useCart } from '../context/CartContext'
 import { useAuth } from '../context/AuthContext'
@@ -204,6 +204,11 @@ export default function ProductDetail() {
                   </span>
                 )}
               </div>
+              {qty > 1 && (
+                <p className="text-sm font-semibold text-gray-700 mt-1">
+                  Total: {formatCurrency(displayPrice * qty)} <span className="text-xs text-gray-400 font-normal">({qty} × {formatCurrency(displayPrice)})</span>
+                </p>
+              )}
               {!!product.has_variants && !selectedVariant && product.variants?.length > 0 && (
                 <p className="text-sm text-gray-500 mt-1">
                   {(() => {
@@ -311,6 +316,7 @@ export default function ProductDetail() {
               {[
                 { icon: <Shield size={16} />, text: 'Secure Payment' },
                 { icon: <Truck size={16} />, text: 'Fast Delivery' },
+                ...(product.return_policy_enabled ? [{ icon: <RefreshCw size={16} />, text: '10-Day Easy Returns' }] : []),
               ].map(b => (
                 <div key={b.text} className="flex items-center gap-2 text-sm text-gray-600 bg-gray-50 rounded-xl p-3">
                   <span className="text-primary-500">{b.icon}</span>

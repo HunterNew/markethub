@@ -24,8 +24,8 @@ export const formatDateTime = (date: string | Date): string => {
 
 export const getStatusColor = (status: string) => {
   const map: Record<string, string> = {
-    active: 'badge-success', approved: 'badge-success', completed: 'badge-success', delivered: 'badge-success', paid: 'badge-success',
-    pending: 'badge-warning', pending_approval: 'badge-warning', pending_payment: 'badge-warning',
+    active: 'badge-success', approved: 'badge-success', completed: 'badge-success', delivered: 'badge-success', paid: 'badge-success', returned: 'badge-info',
+    pending: 'badge-warning', pending_approval: 'badge-warning', pending_payment: 'badge-warning', return_requested: 'badge-warning', refund_pending: 'badge-warning',
     rejected: 'badge-error', cancelled: 'badge-error', deleted: 'badge-error', refunded: 'badge-error',
     shipped: 'badge-info', confirmed: 'badge-info',
     out_of_stock: 'badge-gray',
@@ -40,6 +40,7 @@ export const getStatusLabel = (status: string) => {
     rejected: 'Rejected', cancelled: 'Cancelled', deleted: 'Deleted',
     shipped: 'Shipped', confirmed: 'Confirmed', paid: 'Paid', refunded: 'Refunded',
     out_of_stock: 'Out of Stock',
+    return_requested: 'Return Requested', returned: 'Returned', refund_pending: 'Refund Pending',
   }
   return map[status] || status
 }

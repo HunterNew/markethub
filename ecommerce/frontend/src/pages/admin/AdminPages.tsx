@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react'
-import { Users, Package, ShoppingBag, DollarSign, TrendingUp, CheckCircle, XCircle, Eye, ToggleLeft, ToggleRight, Plus, Trash2, Edit2, Tag } from 'lucide-react'
+import { Users, Package, ShoppingBag, DollarSign, TrendingUp, CheckCircle, XCircle, Eye, ToggleLeft, ToggleRight, Plus, Trash2, Edit2, Tag, Wallet, Image, Mail } from 'lucide-react'
 import api from '../../api/client'
 import { AdminLayout } from '../../components/layout/DashboardLayout'
-import { Modal, StatusBadge, Table, Skeleton, StatCard, EmptyState } from '../../components/ui'
+import { Modal, StatusBadge, Table, Skeleton, StatCard, EmptyState, ConfirmDialog } from '../../components/ui'
 import { formatCurrency, formatDateTime } from '../../utils/helpers'
 import toast from '../../components/ui/Toast'
 
@@ -35,7 +35,7 @@ export function AdminDashboard() {
 
   return (
     <AdminLayout>
-      <div className="p-8">
+      <div className="p-4 sm:p-6 lg:p-8">
         <h1 className="text-2xl font-bold text-gray-900 mb-2">Admin Dashboard</h1>
         <p className="text-gray-500 mb-8">Platform overview</p>
         <div className="grid sm:grid-cols-2 xl:grid-cols-3 gap-4 mb-8">
@@ -190,7 +190,7 @@ export function AdminVendors() {
 
   return (
     <AdminLayout>
-      <div className="p-8">
+      <div className="p-4 sm:p-6 lg:p-8">
         <h1 className="text-2xl font-bold text-gray-900 mb-6">Vendor Management</h1>
         <div className="flex gap-2 mb-6">
           {['all', 'pending', 'approved', 'rejected'].map(s => (
@@ -217,6 +217,11 @@ export function AdminVendors() {
                   <td className="table-cell px-4">
                     <div className="flex gap-2">
                       <button onClick={() => setDetailVendor(v)} className="p-1.5 hover:bg-gray-100 rounded-lg text-gray-500 transition-colors"><Eye size={14} /></button>
+                      {v.whatsapp_number && (
+                        <a href={`https://wa.me/${v.whatsapp_number}?text=Hi ${encodeURIComponent(v.store_name)}, this is MarketHub Admin.`} target="_blank" rel="noopener noreferrer" className="p-1.5 hover:bg-green-50 rounded-lg text-green-600 transition-colors" title="WhatsApp">
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
+                        </a>
+                      )}
                       {v.status === 'pending' && (
                         <>
                           <button onClick={() => approve(v.id)} className="p-1.5 hover:bg-green-50 rounded-lg text-green-600 transition-colors"><CheckCircle size={14} /></button>
@@ -254,6 +259,16 @@ export function AdminVendors() {
               {/* Contact & Documents */}
               {detailVendor.contact_phone && (
                 <div><p className="text-gray-400 text-xs">Contact Phone</p><p className="font-medium text-gray-800">{detailVendor.contact_phone}</p></div>
+              )}
+              {detailVendor.whatsapp_number && (
+                <div>
+                  <p className="text-gray-400 text-xs">WhatsApp</p>
+                  <a href={`https://wa.me/${detailVendor.whatsapp_number}?text=Hi ${encodeURIComponent(detailVendor.store_name)}, this is MarketHub Admin.`} target="_blank" rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1.5 mt-1 px-3 py-1.5 bg-green-500 hover:bg-green-600 text-white text-xs font-medium rounded-lg transition-colors">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
+                    Chat on WhatsApp
+                  </a>
+                </div>
               )}
 
               {(detailVendor.gst_number || detailVendor.fssai_number) && (
@@ -328,7 +343,7 @@ export function AdminProducts() {
 
   return (
     <AdminLayout>
-      <div className="p-8">
+      <div className="p-4 sm:p-6 lg:p-8">
         <h1 className="text-2xl font-bold text-gray-900 mb-6">Products</h1>
         <div className="flex gap-2 mb-6">
           {['pending_approval', 'active', 'rejected'].map(s => (
@@ -428,7 +443,7 @@ export function AdminOrders() {
 
   return (
     <AdminLayout>
-      <div className="p-8">
+      <div className="p-4 sm:p-6 lg:p-8">
         <h1 className="text-2xl font-bold text-gray-900 mb-6">All Orders</h1>
         <div className="flex gap-2 mb-6 flex-wrap">
           {['', 'confirmed', 'shipped', 'delivered', 'cancelled'].map(s => (
@@ -576,6 +591,12 @@ export function AdminOrders() {
                   })}
                 </div>
               </div>
+              {/* Invoice button */}
+              <div className="pt-4 border-t border-gray-100">
+                <a href={`/invoice/${selected.id}`} target="_blank" rel="noopener noreferrer" className="btn-secondary text-sm inline-flex items-center gap-1.5">
+                  View Invoice
+                </a>
+              </div>
             </div>
           )}
         </Modal>
@@ -596,7 +617,7 @@ export function AdminReports() {
 
   return (
     <AdminLayout>
-      <div className="p-8">
+      <div className="p-4 sm:p-6 lg:p-8">
         <h1 className="text-2xl font-bold text-gray-900 mb-8">Reports</h1>
         <div className="space-y-8">
           <div className="card p-6">
@@ -673,7 +694,7 @@ export function AdminSettings() {
     </div>
   )
 
-  if (loading) return <AdminLayout><div className="p-8"><Skeleton className="h-96 rounded-2xl" /></div></AdminLayout>
+  if (loading) return <AdminLayout><div className="p-4 sm:p-6 lg:p-8"><Skeleton className="h-96 rounded-2xl" /></div></AdminLayout>
 
   return (
     <AdminLayout>
@@ -752,6 +773,15 @@ export function AdminSettings() {
               <Toggle settingKey="homepage_sale_enabled" label="Sale / Offers" desc="Show products on sale" />
             </div>
           </div>
+
+          {/* OTP Verification */}
+          <div className="card p-6">
+            <h2 className="font-bold text-gray-900 mb-4">OTP Verification</h2>
+            <div className="space-y-3">
+              <Toggle settingKey="email_otp_required" label="Email OTP (Registration)" desc="Require email verification during registration" />
+              <Toggle settingKey="sms_otp_enabled" label="SMS OTP" desc="Enable SMS OTP verification (requires SMS provider setup)" />
+            </div>
+          </div>
         </div>
       </div>
     </AdminLayout>
@@ -761,49 +791,102 @@ export function AdminSettings() {
 // ============ ADMIN WITHDRAWALS ============
 export function AdminWithdrawals() {
   const [withdrawals, setWithdrawals] = useState<any[]>([])
-  const [filter, setFilter] = useState('pending')
+  const [filter, setFilter] = useState('all')
+  const [loading, setLoading] = useState(true)
+  const [rejectModal, setRejectModal] = useState<any>(null)
+  const [rejectReason, setRejectReason] = useState('')
 
   const load = () => {
-    const q = filter ? `?status=${filter}` : ''
-    api.get(`/admin/withdrawals${q}`).then(r => setWithdrawals(r.data.withdrawals || [])).catch(() => {})
+    setLoading(true)
+    const q = filter && filter !== 'all' ? `?status=${filter}` : ''
+    api.get(`/admin/withdrawals${q}`).then(r => setWithdrawals(r.data.withdrawals || [])).catch(() => {}).finally(() => setLoading(false))
   }
   useEffect(load, [filter])
 
-  const action = async (id: number, act: string) => {
-    await api.patch(`/admin/withdrawals/${id}/${act}`)
-    toast.success(`Withdrawal ${act}`); load()
+  const approve = async (id: number) => {
+    await api.patch(`/admin/withdrawals/${id}/approve`)
+    toast.success('Withdrawal approved'); load()
+  }
+
+  const complete = async (id: number) => {
+    await api.patch(`/admin/withdrawals/${id}/complete`)
+    toast.success('Withdrawal marked as completed'); load()
+  }
+
+  const reject = async () => {
+    if (!rejectReason.trim()) return toast.error('Reason required')
+    await api.patch(`/admin/withdrawals/${rejectModal.id}/reject`, { reason: rejectReason })
+    toast.success('Withdrawal rejected'); setRejectModal(null); setRejectReason(''); load()
   }
 
   return (
     <AdminLayout>
-      <div className="p-8">
+      <div className="p-4 sm:p-6 lg:p-8">
         <h1 className="text-2xl font-bold text-gray-900 mb-6">Withdrawals</h1>
         <div className="flex gap-2 mb-6">
-          {['pending', 'approved', 'completed', 'rejected'].map(s => (
+          {['all', 'pending', 'approved', 'completed', 'rejected'].map(s => (
             <button key={s} onClick={() => setFilter(s)}
               className={`px-4 py-1.5 rounded-xl text-sm font-medium capitalize transition-colors ${filter === s ? 'bg-primary-500 text-white' : 'bg-white border border-gray-200 text-gray-600 hover:bg-gray-50'}`}>{s}</button>
           ))}
         </div>
-        <div className="card overflow-hidden">
-          <Table headers={['Vendor', 'Amount', 'Date', 'Status', 'Actions']}>
-            {withdrawals.map(w => (
-              <tr key={w.id}>
-                <td className="table-cell px-4"><div><p className="font-medium text-sm">{w.store_name}</p><p className="text-xs text-gray-400">{w.email}</p></div></td>
-                <td className="table-cell px-4 font-bold text-lg">{formatCurrency(w.amount)}</td>
-                <td className="table-cell px-4 text-xs text-gray-500">{formatDateTime(w.created_at)}</td>
-                <td className="table-cell px-4"><StatusBadge status={w.status} /></td>
-                <td className="table-cell px-4">
-                  <div className="flex gap-2">
-                    {w.status === 'pending' && <button onClick={() => action(w.id, 'approve')} className="text-xs bg-blue-50 text-blue-700 px-3 py-1 rounded-lg hover:bg-blue-100">Approve</button>}
-                    {w.status === 'approved' && <button onClick={() => action(w.id, 'complete')} className="text-xs bg-green-50 text-green-700 px-3 py-1 rounded-lg hover:bg-green-100">Complete</button>}
-                    {w.status === 'pending' && <button onClick={() => action(w.id, 'reject')} className="text-xs bg-red-50 text-red-600 px-3 py-1 rounded-lg hover:bg-red-100">Reject</button>}
-                  </div>
-                </td>
-              </tr>
-            ))}
-          </Table>
-          {withdrawals.length === 0 && <div className="p-8 text-center text-gray-400">No {filter} withdrawals</div>}
-        </div>
+        {loading ? <Skeleton className="h-64 rounded-2xl" /> : withdrawals.length === 0 ? (
+          <EmptyState icon={<Wallet size={48} />} title="No withdrawals" description={`No ${filter === 'all' ? '' : filter + ' '}withdrawal requests.`} />
+        ) : (
+          <div className="card overflow-hidden">
+            <Table headers={['Vendor', 'Amount', 'Bank Details', 'Status', 'Date', 'Actions']}>
+              {withdrawals.map(w => (
+                <tr key={w.id}>
+                  <td className="table-cell px-4">
+                    <div>
+                      <p className="font-medium text-sm">{w.store_name}</p>
+                      <p className="text-xs text-gray-400">{w.email}</p>
+                    </div>
+                  </td>
+                  <td className="table-cell px-4 font-bold text-lg">{formatCurrency(w.amount)}</td>
+                  <td className="table-cell px-4">
+                    <div className="text-xs space-y-0.5">
+                      {w.bank_account_number ? (
+                        <>
+                          <p className="text-gray-700 font-medium">{w.bank_account_name || '—'}</p>
+                          <p className="text-gray-500">A/C: <span className="font-mono">{w.bank_account_number}</span></p>
+                          <p className="text-gray-500">IFSC: <span className="font-mono">{w.bank_ifsc || '—'}</span></p>
+                          <p className="text-gray-400">{w.bank_name || ''}</p>
+                        </>
+                      ) : (
+                        <p className="text-gray-400 italic">No bank details</p>
+                      )}
+                    </div>
+                  </td>
+                  <td className="table-cell px-4"><StatusBadge status={w.status} /></td>
+                  <td className="table-cell px-4 text-xs text-gray-500">{formatDateTime(w.created_at)}</td>
+                  <td className="table-cell px-4">
+                    <div className="flex gap-2">
+                      {w.status === 'pending' && (
+                        <>
+                          <button onClick={() => approve(w.id)} className="text-xs bg-blue-50 text-blue-700 px-3 py-1 rounded-lg hover:bg-blue-100">Approve</button>
+                          <button onClick={() => setRejectModal(w)} className="text-xs bg-red-50 text-red-600 px-3 py-1 rounded-lg hover:bg-red-100">Reject</button>
+                        </>
+                      )}
+                      {w.status === 'approved' && (
+                        <button onClick={() => complete(w.id)} className="text-xs bg-green-50 text-green-700 px-3 py-1 rounded-lg hover:bg-green-100">Mark Completed</button>
+                      )}
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </Table>
+          </div>
+        )}
+
+        <Modal open={!!rejectModal} onClose={() => setRejectModal(null)} title="Reject Withdrawal" size="sm">
+          <p className="text-sm text-gray-500 mb-3">Rejecting withdrawal of <strong>{formatCurrency(rejectModal?.amount)}</strong> from <strong>{rejectModal?.store_name}</strong></p>
+          <label className="label">Rejection Reason *</label>
+          <textarea className="input resize-none" rows={3} value={rejectReason} onChange={e => setRejectReason(e.target.value)} placeholder="Why is this withdrawal being rejected?" />
+          <div className="flex gap-3 mt-4">
+            <button onClick={() => { setRejectModal(null); setRejectReason('') }} className="btn-secondary">Cancel</button>
+            <button onClick={reject} className="btn-danger">Reject Withdrawal</button>
+          </div>
+        </Modal>
       </div>
     </AdminLayout>
   )
@@ -852,7 +935,7 @@ export function AdminCategories() {
 
   return (
     <AdminLayout>
-      <div className="p-8">
+      <div className="p-4 sm:p-6 lg:p-8">
         <div className="flex items-center justify-between mb-6">
           <div>
             <h1 className="text-2xl font-bold text-gray-900">Categories</h1>
@@ -932,7 +1015,7 @@ export function AdminCoupons() {
 
   return (
     <AdminLayout>
-      <div className="p-8">
+      <div className="p-4 sm:p-6 lg:p-8">
         <h1 className="text-2xl font-bold text-gray-900 mb-6">All Coupons</h1>
         {loading ? <Skeleton className="h-64 rounded-2xl" /> : coupons.length === 0 ? (
           <div className="card p-16 text-center">
@@ -975,5 +1058,686 @@ export function AdminCoupons() {
         )}
       </div>
     </AdminLayout>
+  )
+}
+
+// ============ ADMIN BANNERS ============
+export function AdminBanners() {
+  const [banners, setBanners] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
+  const [modalOpen, setModalOpen] = useState(false)
+  const [editing, setEditing] = useState<any>(null)
+  const [deleteId, setDeleteId] = useState<number | null>(null)
+  const [form, setForm] = useState({ image_url: '', title: '', subtitle: '', description: '', link_url: '', sort_order: 0 })
+  const [uploading, setUploading] = useState(false)
+
+  const load = () => {
+    setLoading(true)
+    api.get('/admin/banners').then(r => setBanners(r.data.banners || [])).catch(() => {}).finally(() => setLoading(false))
+  }
+  useEffect(load, [])
+
+  const openAdd = () => {
+    setEditing(null)
+    setForm({ image_url: '', title: '', subtitle: '', description: '', link_url: '', sort_order: banners.length })
+    setModalOpen(true)
+  }
+
+  const openEdit = (b: any) => {
+    setEditing(b)
+    setForm({ image_url: b.image_url, title: b.title || '', subtitle: b.subtitle || '', description: b.description || '', link_url: b.link_url || '', sort_order: b.sort_order })
+    setModalOpen(true)
+  }
+
+  const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    const fd = new FormData()
+    fd.append('image', file)
+    setUploading(true)
+    try {
+      const res = await api.post('/upload', fd, { headers: { 'Content-Type': 'multipart/form-data' } })
+      setForm(prev => ({ ...prev, image_url: res.data.url }))
+      toast.success('Image uploaded')
+    } catch {
+      toast.error('Upload failed')
+    } finally {
+      setUploading(false)
+    }
+  }
+
+  const handleSave = async () => {
+    if (!form.image_url) return toast.error('Image is required')
+    try {
+      if (editing) {
+        await api.put(`/admin/banners/${editing.id}`, form)
+        toast.success('Banner updated')
+      } else {
+        await api.post('/admin/banners', form)
+        toast.success('Banner created')
+      }
+      setModalOpen(false)
+      load()
+    } catch {
+      toast.error('Failed to save banner')
+    }
+  }
+
+  const handleDelete = async () => {
+    if (!deleteId) return
+    try {
+      await api.delete(`/admin/banners/${deleteId}`)
+      toast.success('Banner deleted')
+      setDeleteId(null)
+      load()
+    } catch {
+      toast.error('Failed to delete banner')
+    }
+  }
+
+  const toggleActive = async (b: any) => {
+    try {
+      await api.put(`/admin/banners/${b.id}`, { is_active: !b.is_active })
+      toast.success(b.is_active ? 'Banner deactivated' : 'Banner activated')
+      load()
+    } catch {
+      toast.error('Failed to update banner')
+    }
+  }
+
+  return (
+    <AdminLayout>
+      <div className="p-4 sm:p-6 lg:p-8">
+        <div className="flex items-center justify-between mb-6">
+          <h1 className="text-2xl font-bold text-gray-900">Homepage Banners</h1>
+          <button onClick={openAdd} className="btn-primary">
+            <Plus size={16} /> Add Banner
+          </button>
+        </div>
+
+        {loading ? <Skeleton className="h-64 rounded-2xl" /> : banners.length === 0 ? (
+          <EmptyState icon={<Image size={48} />} title="No banners" description="Add banners to display on the homepage slider." action={<button onClick={openAdd} className="btn-primary"><Plus size={16} /> Add Banner</button>} />
+        ) : (
+          <div className="card overflow-hidden">
+            <Table headers={['Image', 'Title', 'Sort Order', 'Active', 'Actions']}>
+              {banners.map(b => (
+                <tr key={b.id}>
+                  <td className="table-cell px-4">
+                    <div className="w-24 h-14 rounded-lg overflow-hidden bg-gray-100 flex-shrink-0">
+                      <img src={b.image_url} alt={b.title || 'Banner'} className="w-full h-full object-cover" />
+                    </div>
+                  </td>
+                  <td className="table-cell px-4">
+                    <div>
+                      <p className="font-medium text-gray-800 text-sm">{b.title || '(No title)'}</p>
+                      {b.subtitle && <p className="text-xs text-gray-400 truncate max-w-[200px]">{b.subtitle}</p>}
+                    </div>
+                  </td>
+                  <td className="table-cell px-4 text-center text-sm text-gray-600">{b.sort_order}</td>
+                  <td className="table-cell px-4">
+                    <button onClick={() => toggleActive(b)} className="text-gray-500 hover:text-primary-500 transition-colors">
+                      {b.is_active ? <ToggleRight size={22} className="text-green-500" /> : <ToggleLeft size={22} />}
+                    </button>
+                  </td>
+                  <td className="table-cell px-4">
+                    <div className="flex gap-2">
+                      <button onClick={() => openEdit(b)} className="p-1.5 hover:bg-gray-100 rounded-lg text-gray-500 transition-colors"><Edit2 size={14} /></button>
+                      <button onClick={() => setDeleteId(b.id)} className="p-1.5 hover:bg-red-50 rounded-lg text-red-500 transition-colors"><Trash2 size={14} /></button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </Table>
+          </div>
+        )}
+
+        {/* Add/Edit Modal */}
+        <Modal open={modalOpen} onClose={() => setModalOpen(false)} title={editing ? 'Edit Banner' : 'Add Banner'}>
+          <div className="space-y-4">
+            <div>
+              <label className="label">Banner Image *</label>
+              {form.image_url && (
+                <div className="mb-3 rounded-xl overflow-hidden bg-gray-100 h-40">
+                  <img src={form.image_url} alt="Preview" className="w-full h-full object-cover" />
+                </div>
+              )}
+              <input type="file" accept="image/*" onChange={handleUpload} className="input" disabled={uploading} />
+              {uploading && <p className="text-xs text-gray-400 mt-1">Uploading...</p>}
+              <p className="text-xs text-gray-400 mt-1">Or paste URL directly:</p>
+              <input type="text" className="input mt-1" placeholder="https://..." value={form.image_url} onChange={e => setForm(prev => ({ ...prev, image_url: e.target.value }))} />
+            </div>
+            <div>
+              <label className="label">Title</label>
+              <input type="text" className="input" placeholder="Banner title" value={form.title} onChange={e => setForm(prev => ({ ...prev, title: e.target.value }))} />
+            </div>
+            <div>
+              <label className="label">Subtitle (shown as badge/tagline on top)</label>
+              <input type="text" className="input" placeholder="e.g. New arrivals every day" value={form.subtitle} onChange={e => setForm(prev => ({ ...prev, subtitle: e.target.value }))} />
+            </div>
+            <div>
+              <label className="label">Description (shown below title)</label>
+              <input type="text" className="input" placeholder="e.g. Discover millions of products from verified vendors." value={form.description} onChange={e => setForm(prev => ({ ...prev, description: e.target.value }))} />
+            </div>
+            <div>
+              <label className="label">Link URL</label>
+              <input type="text" className="input" placeholder="/products or https://..." value={form.link_url} onChange={e => setForm(prev => ({ ...prev, link_url: e.target.value }))} />
+            </div>
+            <div>
+              <label className="label">Sort Order</label>
+              <input type="number" className="input" value={form.sort_order} onChange={e => setForm(prev => ({ ...prev, sort_order: Number(e.target.value) }))} />
+            </div>
+            <div className="flex gap-3 pt-2">
+              <button onClick={() => setModalOpen(false)} className="btn-secondary">Cancel</button>
+              <button onClick={handleSave} className="btn-primary" disabled={uploading}>{editing ? 'Update' : 'Create'} Banner</button>
+            </div>
+          </div>
+        </Modal>
+
+        {/* Delete Confirmation */}
+        <ConfirmDialog
+          open={!!deleteId}
+          onClose={() => setDeleteId(null)}
+          onConfirm={handleDelete}
+          title="Delete Banner"
+          message="Are you sure you want to delete this banner? This action cannot be undone."
+          confirmLabel="Delete"
+          danger
+        />
+      </div>
+    </AdminLayout>
+  )
+}
+
+// ============ ADMIN PROMO CARDS ============
+export function AdminPromoCards() {
+  const [cards, setCards] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
+  const [modalOpen, setModalOpen] = useState(false)
+  const [editing, setEditing] = useState<any>(null)
+  const [deleteId, setDeleteId] = useState<number | null>(null)
+  const [form, setForm] = useState({ image_url: '', title: '', subtitle: '', link_url: '', sort_order: 0 })
+  const [uploading, setUploading] = useState(false)
+
+  const load = () => {
+    setLoading(true)
+    api.get('/admin/promo-cards').then(r => setCards(r.data.cards || [])).catch(() => {}).finally(() => setLoading(false))
+  }
+  useEffect(load, [])
+
+  const openAdd = () => {
+    setEditing(null)
+    setForm({ image_url: '', title: '', subtitle: '', link_url: '', sort_order: cards.length })
+    setModalOpen(true)
+  }
+
+  const openEdit = (c: any) => {
+    setEditing(c)
+    setForm({ image_url: c.image_url, title: c.title || '', subtitle: c.subtitle || '', link_url: c.link_url || '', sort_order: c.sort_order })
+    setModalOpen(true)
+  }
+
+  const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    const fd = new FormData()
+    fd.append('image', file)
+    setUploading(true)
+    try {
+      const res = await api.post('/upload', fd, { headers: { 'Content-Type': 'multipart/form-data' } })
+      setForm(prev => ({ ...prev, image_url: res.data.url }))
+      toast.success('Image uploaded')
+    } catch {
+      toast.error('Upload failed')
+    } finally {
+      setUploading(false)
+    }
+  }
+
+  const handleSave = async () => {
+    if (!form.image_url || !form.title) return toast.error('Image and title are required')
+    try {
+      if (editing) {
+        await api.put(`/admin/promo-cards/${editing.id}`, form)
+        toast.success('Promo card updated')
+      } else {
+        await api.post('/admin/promo-cards', form)
+        toast.success('Promo card created')
+      }
+      setModalOpen(false)
+      load()
+    } catch {
+      toast.error('Failed to save promo card')
+    }
+  }
+
+  const handleDelete = async () => {
+    if (!deleteId) return
+    try {
+      await api.delete(`/admin/promo-cards/${deleteId}`)
+      toast.success('Promo card deleted')
+      setDeleteId(null)
+      load()
+    } catch {
+      toast.error('Failed to delete promo card')
+    }
+  }
+
+  const toggleActive = async (c: any) => {
+    try {
+      await api.put(`/admin/promo-cards/${c.id}`, { is_active: !c.is_active })
+      toast.success(c.is_active ? 'Card deactivated' : 'Card activated')
+      load()
+    } catch {
+      toast.error('Failed to update card')
+    }
+  }
+
+  return (
+    <AdminLayout>
+      <div className="p-4 sm:p-6 lg:p-8">
+        <div className="flex items-center justify-between mb-6">
+          <h1 className="text-2xl font-bold text-gray-900">Promo Cards</h1>
+          <button onClick={openAdd} className="btn-primary">
+            <Plus size={16} /> Add Promo Card
+          </button>
+        </div>
+
+        {loading ? <Skeleton className="h-64 rounded-2xl" /> : cards.length === 0 ? (
+          <EmptyState icon={<Image size={48} />} title="No promo cards" description="Add promotional cards to display on the homepage." action={<button onClick={openAdd} className="btn-primary"><Plus size={16} /> Add Promo Card</button>} />
+        ) : (
+          <div className="card overflow-hidden">
+            <Table headers={['Image', 'Title', 'Subtitle', 'Link', 'Order', 'Active', 'Actions']}>
+              {cards.map(c => (
+                <tr key={c.id}>
+                  <td className="table-cell px-4">
+                    <div className="w-24 h-14 rounded-lg overflow-hidden bg-gray-100 flex-shrink-0">
+                      <img src={c.image_url} alt={c.title} className="w-full h-full object-cover" />
+                    </div>
+                  </td>
+                  <td className="table-cell px-4 font-medium text-gray-800 text-sm">{c.title}</td>
+                  <td className="table-cell px-4 text-sm text-gray-500">{c.subtitle || '—'}</td>
+                  <td className="table-cell px-4 text-sm text-gray-500 truncate max-w-[150px]">{c.link_url || '—'}</td>
+                  <td className="table-cell px-4 text-center text-sm text-gray-600">{c.sort_order}</td>
+                  <td className="table-cell px-4">
+                    <button onClick={() => toggleActive(c)} className="text-gray-500 hover:text-primary-500 transition-colors">
+                      {c.is_active ? <ToggleRight size={22} className="text-green-500" /> : <ToggleLeft size={22} />}
+                    </button>
+                  </td>
+                  <td className="table-cell px-4">
+                    <div className="flex gap-2">
+                      <button onClick={() => openEdit(c)} className="p-1.5 hover:bg-gray-100 rounded-lg text-gray-500 transition-colors"><Edit2 size={14} /></button>
+                      <button onClick={() => setDeleteId(c.id)} className="p-1.5 hover:bg-red-50 rounded-lg text-red-500 transition-colors"><Trash2 size={14} /></button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </Table>
+          </div>
+        )}
+
+        <Modal open={modalOpen} onClose={() => setModalOpen(false)} title={editing ? 'Edit Promo Card' : 'Add Promo Card'}>
+          <div className="space-y-4">
+            <div>
+              <label className="label">Card Image *</label>
+              {form.image_url && (
+                <div className="mb-3 rounded-xl overflow-hidden bg-gray-100 h-40">
+                  <img src={form.image_url} alt="Preview" className="w-full h-full object-cover" />
+                </div>
+              )}
+              <input type="file" accept="image/*" onChange={handleUpload} className="input" disabled={uploading} />
+              {uploading && <p className="text-xs text-gray-400 mt-1">Uploading...</p>}
+              <p className="text-xs text-gray-400 mt-1">Or paste URL directly:</p>
+              <input type="text" className="input mt-1" placeholder="https://..." value={form.image_url} onChange={e => setForm(prev => ({ ...prev, image_url: e.target.value }))} />
+            </div>
+            <div>
+              <label className="label">Title *</label>
+              <input type="text" className="input" placeholder="e.g. Latest Electronics" value={form.title} onChange={e => setForm(prev => ({ ...prev, title: e.target.value }))} />
+            </div>
+            <div>
+              <label className="label">Subtitle</label>
+              <input type="text" className="input" placeholder="e.g. Up to 40% off" value={form.subtitle} onChange={e => setForm(prev => ({ ...prev, subtitle: e.target.value }))} />
+            </div>
+            <div>
+              <label className="label">Link URL</label>
+              <input type="text" className="input" placeholder="/products?categoryId=1" value={form.link_url} onChange={e => setForm(prev => ({ ...prev, link_url: e.target.value }))} />
+            </div>
+            <div>
+              <label className="label">Sort Order</label>
+              <input type="number" className="input" value={form.sort_order} onChange={e => setForm(prev => ({ ...prev, sort_order: Number(e.target.value) }))} />
+            </div>
+            <div className="flex gap-3 pt-2">
+              <button onClick={() => setModalOpen(false)} className="btn-secondary">Cancel</button>
+              <button onClick={handleSave} className="btn-primary" disabled={uploading}>{editing ? 'Update' : 'Create'} Promo Card</button>
+            </div>
+          </div>
+        </Modal>
+
+        <ConfirmDialog
+          open={!!deleteId}
+          onClose={() => setDeleteId(null)}
+          onConfirm={handleDelete}
+          title="Delete Promo Card"
+          message="Are you sure you want to delete this promo card? This action cannot be undone."
+          confirmLabel="Delete"
+          danger
+        />
+      </div>
+    </AdminLayout>
+  )
+}
+
+// ============ ADMIN RETURNS & REFUNDS ============
+export function AdminReturns() {
+  const [returns, setReturns] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
+
+  const load = () => {
+    setLoading(true)
+    api.get('/orders/returns/admin').then(r => setReturns(r.data.returns || [])).catch(() => {}).finally(() => setLoading(false))
+  }
+  useEffect(load, [])
+
+  const processRefund = async (id: number) => {
+    if (!confirm('Process refund? Amount will be credited to customer within 3-5 business days.')) return
+    try {
+      await api.put(`/orders/returns/${id}/refund`, { adminNote: 'Refund processed. Amount will be credited within 3-5 business days.' })
+      toast.success('Refund processed')
+      load()
+    } catch {
+      toast.error('Failed to process refund')
+    }
+  }
+
+  return (
+    <AdminLayout>
+      <div className="p-4 sm:p-6 lg:p-8">
+        <h1 className="text-2xl font-bold text-gray-900 mb-6">Returns & Refunds</h1>
+
+        {loading ? <Skeleton className="h-64 rounded-2xl" /> : returns.length === 0 ? (
+          <div className="card p-8 text-center text-gray-400">No return requests yet.</div>
+        ) : (
+          <div className="card overflow-hidden">
+            <Table headers={['Order', 'Customer', 'Vendor', 'Reason', 'Proof', 'Amount', 'Status', 'Actions']}>
+              {returns.map(r => (
+                <tr key={r.id}>
+                  <td className="table-cell px-4 font-mono font-bold text-gray-800">#{r.order_id}</td>
+                  <td className="table-cell px-4">
+                    <p className="text-sm font-medium">{r.first_name} {r.last_name}</p>
+                    <p className="text-xs text-gray-400">{r.customer_email}</p>
+                  </td>
+                  <td className="table-cell px-4 text-sm text-gray-600">{r.vendor_name}</td>
+                  <td className="table-cell px-4 text-sm text-gray-600 max-w-[150px] truncate" title={r.reason}>{r.reason}</td>
+                  <td className="table-cell px-4">
+                    {r.proof_image_url && (
+                      <a href={r.proof_image_url} target="_blank" rel="noopener noreferrer">
+                        <img src={r.proof_image_url} alt="Proof" className="w-12 h-12 rounded-lg object-cover border border-gray-200" />
+                      </a>
+                    )}
+                  </td>
+                  <td className="table-cell px-4 font-bold text-sm">{formatCurrency(r.refund_amount || r.total)}</td>
+                  <td className="table-cell px-4"><StatusBadge status={r.status === 'refund_pending' ? 'pending' : r.status} /></td>
+                  <td className="table-cell px-4">
+                    {r.status === 'refund_pending' && (
+                      <button onClick={() => processRefund(r.id)} className="text-xs bg-green-50 text-green-700 hover:bg-green-100 px-3 py-1.5 rounded-lg font-medium transition-colors">
+                        Process Refund
+                      </button>
+                    )}
+                    {r.status === 'refunded' && <span className="text-xs text-green-600">Done</span>}
+                    {r.status === 'pending' && <span className="text-xs text-gray-400">Awaiting vendor</span>}
+                    {r.status === 'rejected' && <span className="text-xs text-red-500">Rejected</span>}
+                  </td>
+                </tr>
+              ))}
+            </Table>
+          </div>
+        )}
+      </div>
+    </AdminLayout>
+  )
+}
+
+
+// ============ ADMIN REVIEWS ============
+export function AdminReviews() {
+  const [reviews, setReviews] = useState<any[]>([])
+  const [stats, setStats] = useState<any>({ total: 0, avgRating: 0 })
+  const [loading, setLoading] = useState(true)
+
+  const load = () => {
+    setLoading(true)
+    api.get('/reviews/admin').then(r => {
+      setReviews(r.data.reviews || [])
+      setStats(r.data.stats || { total: 0, avgRating: 0 })
+    }).catch(() => {}).finally(() => setLoading(false))
+  }
+  useEffect(load, [])
+
+  const deleteReview = async (id: number) => {
+    if (!confirm('Delete this review?')) return
+    try {
+      await api.delete(`/reviews/admin/${id}`)
+      toast.success('Review deleted')
+      load()
+    } catch { toast.error('Failed to delete') }
+  }
+
+  return (
+    <AdminLayout>
+      <div className="p-4 sm:p-6 lg:p-8">
+        <h1 className="text-2xl font-bold text-gray-900 mb-6">All Reviews</h1>
+
+        <div className="grid grid-cols-2 gap-4 mb-6">
+          <div className="border border-gray-200 rounded-xl bg-white p-4 text-center">
+            <p className="text-3xl font-bold text-gray-900">{stats.total}</p>
+            <p className="text-xs text-gray-500">Total Reviews</p>
+          </div>
+          <div className="border border-gray-200 rounded-xl bg-white p-4 text-center">
+            <p className="text-3xl font-bold text-amber-500">⭐ {stats.avgRating}</p>
+            <p className="text-xs text-gray-500">Average Rating</p>
+          </div>
+        </div>
+
+        {loading ? <Skeleton className="h-64 rounded-2xl" /> : reviews.length === 0 ? (
+          <div className="border border-gray-200 rounded-xl bg-white p-8 text-center text-gray-400">No reviews yet.</div>
+        ) : (
+          <div className="space-y-3">
+            {reviews.map(r => (
+              <div key={r.id} className="border border-gray-200 rounded-xl bg-white p-4">
+                <div className="flex items-start gap-3">
+                  <div className="w-12 h-12 rounded-lg overflow-hidden bg-gray-100 border border-gray-200 flex-shrink-0">
+                    {r.product_image && <img src={r.product_image} alt="" className="w-full h-full object-cover" />}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-gray-900 truncate">{r.product_name}</p>
+                    <p className="text-xs text-gray-400">{r.vendor_name}</p>
+                    <div className="flex items-center gap-1 mt-0.5">
+                      {[1,2,3,4,5].map(s => (
+                        <span key={s} className={`text-xs ${s <= r.rating ? 'text-amber-400' : 'text-gray-200'}`}>★</span>
+                      ))}
+                    </div>
+                  </div>
+                  <button onClick={() => deleteReview(r.id)} className="text-xs text-red-500 hover:text-red-700 p-1">Delete</button>
+                </div>
+                <div className="mt-2 pl-15">
+                  <p className="text-xs text-gray-500">by {r.first_name} {r.last_name} ({r.customer_email}) • {formatDateTime(r.created_at)}</p>
+                  {r.title && <p className="font-medium text-gray-800 text-sm mt-1">{r.title}</p>}
+                  {r.comment && <p className="text-sm text-gray-600 mt-0.5">{r.comment}</p>}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </AdminLayout>
+  )
+}
+
+
+// ============ ADMIN NOTIFICATIONS ============
+export function AdminNotifications() {
+  const [subject, setSubject] = useState('')
+  const [message, setMessage] = useState('')
+  const [sending, setSending] = useState(false)
+  const [customerCount, setCustomerCount] = useState(0)
+
+  useEffect(() => {
+    api.get('/admin/notifications/customers').then(r => setCustomerCount(r.data.total || 0)).catch(() => {})
+  }, [])
+
+  const sendEmail = async () => {
+    if (!subject.trim() || !message.trim()) return toast.error('Subject and message are required')
+    if (!confirm(`Send this email to ${customerCount} customers?`)) return
+    setSending(true)
+    try {
+      const res = await api.post('/admin/notifications/send-email', { subject, message })
+      toast.success(res.data.message)
+      setSubject('')
+      setMessage('')
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || 'Failed to send')
+    } finally { setSending(false) }
+  }
+
+  const shareWhatsApp = () => {
+    if (!message.trim()) return toast.error('Write a message first')
+    const text = `*${subject || 'MarketHub Offer'}*\n\n${message}`
+    window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank')
+  }
+
+  return (
+    <AdminLayout>
+      <div className="p-4 sm:p-6 lg:p-8">
+        <h1 className="text-xl sm:text-2xl font-bold text-gray-900 mb-2">Send Notification</h1>
+        <p className="text-sm text-gray-500 mb-6">Notify all registered customers about offers, coupons, or updates.</p>
+
+        {/* Stats */}
+        <div className="border border-gray-200 rounded-xl bg-white p-4 mb-6 flex items-center gap-3">
+          <div className="w-10 h-10 bg-blue-50 rounded-lg flex items-center justify-center">
+            <Users size={18} className="text-blue-600" />
+          </div>
+          <div>
+            <p className="text-2xl font-bold text-gray-900">{customerCount}</p>
+            <p className="text-xs text-gray-500">Registered Customers</p>
+          </div>
+        </div>
+
+        {/* Compose */}
+        <div className="border border-gray-200 rounded-xl bg-white overflow-hidden">
+          <div className="px-6 py-4 border-b border-gray-100 bg-gray-50">
+            <h2 className="font-bold text-gray-900">Compose Message</h2>
+          </div>
+          <div className="p-6 space-y-4">
+            <div>
+              <label className="label">Subject / Title *</label>
+              <input className="input" value={subject} onChange={e => setSubject(e.target.value)} placeholder="e.g. 🎉 Flat 20% OFF on all products!" />
+            </div>
+            <div>
+              <label className="label">Message *</label>
+              <textarea className="input resize-none" rows={6} value={message} onChange={e => setMessage(e.target.value)}
+                placeholder="Write your offer details, coupon code, validity, etc.&#10;&#10;Example:&#10;Use code SAVE20 to get 20% off on your next order!&#10;Valid till 30th May 2026.&#10;Shop now at MarketHub!" />
+            </div>
+
+            {/* Preview */}
+            {message && (
+              <div className="border border-gray-200 rounded-xl p-4 bg-gray-50">
+                <p className="text-xs text-gray-500 uppercase font-medium mb-2">Preview</p>
+                <p className="font-bold text-gray-900 mb-1">{subject || 'No subject'}</p>
+                <p className="text-sm text-gray-700 whitespace-pre-line">{message}</p>
+              </div>
+            )}
+
+            {/* Actions */}
+            <div className="flex flex-col sm:flex-row gap-3 pt-2">
+              <button onClick={sendEmail} disabled={sending}
+                className="btn-primary flex-1 justify-center py-2.5">
+                {sending ? <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" /> : (
+                  <><Mail size={16} /> Send Email to All ({customerCount})</>
+                )}
+              </button>
+              <button onClick={shareWhatsApp}
+                className="flex-1 justify-center py-2.5 bg-green-500 hover:bg-green-600 text-white rounded-xl font-medium text-sm flex items-center gap-2 transition-colors">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
+                Share via WhatsApp
+              </button>
+            </div>
+            <p className="text-xs text-gray-400 text-center">Email: sends to all customers automatically. WhatsApp: opens your WhatsApp to share manually.</p>
+          </div>
+        </div>
+
+        {/* WhatsApp Broadcast Helper */}
+        <div className="border border-gray-200 rounded-xl bg-white overflow-hidden mt-6">
+          <div className="px-6 py-4 border-b border-gray-100 bg-gray-50">
+            <h2 className="font-bold text-gray-900">WhatsApp Broadcast Helper</h2>
+            <p className="text-xs text-gray-500 mt-0.5">Copy customer numbers to create a WhatsApp Broadcast List</p>
+          </div>
+          <div className="p-6">
+            <CustomerPhoneList />
+          </div>
+        </div>
+      </div>
+    </AdminLayout>
+  )
+}
+
+
+function CustomerPhoneList() {
+  const [customers, setCustomers] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    api.get('/admin/notifications/customers').then(r => setCustomers(r.data.customers || [])).catch(() => {}).finally(() => setLoading(false))
+  }, [])
+
+  const phonesWithNumbers = customers.filter(c => c.phone)
+
+  const copyAllNumbers = () => {
+    const numbers = phonesWithNumbers.map(c => c.phone).join('\n')
+    navigator.clipboard.writeText(numbers)
+    toast.success(`${phonesWithNumbers.length} numbers copied!`)
+  }
+
+  const copyMessage = () => {
+    const msgEl = document.querySelector('[data-notification-message]') as HTMLTextAreaElement
+    if (msgEl && msgEl.value) {
+      navigator.clipboard.writeText(msgEl.value)
+      toast.success('Message copied!')
+    } else {
+      toast.error('Write a message first')
+    }
+  }
+
+  if (loading) return <div className="text-sm text-gray-400">Loading...</div>
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <p className="text-sm text-gray-700"><span className="font-bold">{phonesWithNumbers.length}</span> customers with phone numbers</p>
+        <button onClick={copyAllNumbers} disabled={phonesWithNumbers.length === 0}
+          className="text-xs bg-green-50 text-green-700 hover:bg-green-100 px-3 py-1.5 rounded-lg font-medium transition-colors disabled:opacity-50">
+          Copy All Numbers
+        </button>
+      </div>
+
+      {phonesWithNumbers.length > 0 && (
+        <div className="max-h-48 overflow-y-auto border border-gray-200 rounded-lg p-3 space-y-1">
+          {phonesWithNumbers.map(c => (
+            <div key={c.id} className="flex items-center justify-between text-sm py-1">
+              <span className="text-gray-700">{c.first_name} {c.last_name}</span>
+              <span className="text-gray-500 font-mono text-xs">{c.phone}</span>
+            </div>
+          ))}
+        </div>
+      )}
+
+      <div className="bg-blue-50 border border-blue-100 rounded-xl p-4 text-xs text-blue-700 space-y-2">
+        <p className="font-bold">How to send WhatsApp to all customers:</p>
+        <ol className="list-decimal list-inside space-y-1">
+          <li>Click "Copy All Numbers" above</li>
+          <li>Open WhatsApp → New Broadcast → paste numbers one by one (or save as contacts first)</li>
+          <li>Write your message in the broadcast and send</li>
+        </ol>
+        <p className="text-blue-500 mt-2">Tip: Save all customer numbers as contacts first, then they'll appear in your Broadcast List.</p>
+      </div>
+    </div>
   )
 }

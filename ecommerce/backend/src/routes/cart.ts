@@ -29,6 +29,21 @@ async function resolvePrice(conn: any, productId: number, quantity: number, user
   // Use variant price as base if provided, otherwise use product price
   const effectivePrice = basePrice !== undefined ? basePrice : Number(product.price);
 
+  // Check for active offer first
+  const [offers] = await conn.query(
+    'SELECT offer_price FROM product_offers WHERE product_id = ? AND starts_at <= NOW() AND ends_at >= NOW() LIMIT 1',
+    [productId]
+  ) as any[];
+  if (offers.length > 0) {
+    const offerPrice = Number(offers[0].offer_price);
+    // For variants, apply the same discount ratio
+    if (basePrice !== undefined && Number(product.price) > 0) {
+      const discountRatio = offerPrice / Number(product.price);
+      return Math.round(effectivePrice * discountRatio * 100) / 100;
+    }
+    return offerPrice;
+  }
+
   const wholesaleEnabled = sm['wholesale_enabled'] === true;
   if (!wholesaleEnabled || !product.wholesale_enabled) return effectivePrice;
 
@@ -74,7 +89,7 @@ router.get('/', authenticate, async (req: AuthRequest, res: Response) => {
     const [items] = await conn.query(
       `SELECT ci.*, p.name, p.stock_quantity as product_stock, p.price as product_price, p.wholesale_price, p.wholesale_min_qty,
         p.wholesale_enabled,
-        pi.image_url as primary_image, v.store_name,
+        pi.image_url as primary_image, v.store_name, v.cod_enabled,
         po.offer_price, CASE WHEN po.id IS NOT NULL THEN true ELSE false END as is_on_sale,
         pv.option_combination, pv.price as variant_price, pv.stock_quantity as variant_stock
       FROM cart_items ci

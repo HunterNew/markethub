@@ -25,23 +25,40 @@ router.get('/profile', authenticate, requireRole('vendor'), async (req: AuthRequ
 });
 
 router.put('/profile', authenticate, requireRole('vendor'), async (req: AuthRequest, res: Response) => {
-  const { gstNumber, fssaiNumber, gstCertificateUrl, fssaiCertificateUrl, bankAccountName, bankAccountNumber, bankIfsc, bankName, contactPhone } = req.body;
+  const { gstNumber, fssaiNumber, gstCertificateUrl, fssaiCertificateUrl, bankAccountName, bankAccountNumber, bankIfsc, bankName, contactPhone, logoUrl, bannerUrl, returnPolicyEnabled, codEnabled, signatureUrl, businessAddress, whatsappNumber } = req.body;
+  console.log('[VENDOR PROFILE PUT] logoUrl:', logoUrl, 'bannerUrl:', bannerUrl);
   const conn = await pool.getConnection();
   try {
     const vendor = await getVendor(conn, req.user!.userId);
     if (!vendor) return res.status(403).json({ status: 'error', message: 'Vendor not found', errors: [] });
 
-    await conn.query(
-      `UPDATE vendors SET
-        gst_number = ?, fssai_number = ?, gst_certificate_url = ?, fssai_certificate_url = ?,
-        bank_account_name = ?, bank_account_number = ?, bank_ifsc = ?, bank_name = ?, contact_phone = ?
-      WHERE id = ?`,
-      [
-        gstNumber || null, fssaiNumber || null, gstCertificateUrl || null, fssaiCertificateUrl || null,
-        bankAccountName || null, bankAccountNumber || null, bankIfsc || null, bankName || null,
-        contactPhone || vendor.contact_phone, vendor.id
-      ]
-    );
+    // Update all fields
+    const updateFields: string[] = [];
+    const updateValues: any[] = [];
+
+    if (contactPhone) { updateFields.push('contact_phone = ?'); updateValues.push(contactPhone); }
+    if (gstNumber !== undefined) { updateFields.push('gst_number = ?'); updateValues.push(gstNumber || null); }
+    if (fssaiNumber !== undefined) { updateFields.push('fssai_number = ?'); updateValues.push(fssaiNumber || null); }
+    if (gstCertificateUrl !== undefined) { updateFields.push('gst_certificate_url = ?'); updateValues.push(gstCertificateUrl || null); }
+    if (fssaiCertificateUrl !== undefined) { updateFields.push('fssai_certificate_url = ?'); updateValues.push(fssaiCertificateUrl || null); }
+    if (bankAccountName !== undefined) { updateFields.push('bank_account_name = ?'); updateValues.push(bankAccountName || null); }
+    if (bankAccountNumber !== undefined) { updateFields.push('bank_account_number = ?'); updateValues.push(bankAccountNumber || null); }
+    if (bankIfsc !== undefined) { updateFields.push('bank_ifsc = ?'); updateValues.push(bankIfsc || null); }
+    if (bankName !== undefined) { updateFields.push('bank_name = ?'); updateValues.push(bankName || null); }
+    if (logoUrl) { updateFields.push('logo_url = ?'); updateValues.push(logoUrl); }
+    if (bannerUrl) { updateFields.push('banner_url = ?'); updateValues.push(bannerUrl); }
+    if (returnPolicyEnabled !== undefined) { updateFields.push('return_policy_enabled = ?'); updateValues.push(returnPolicyEnabled ? 1 : 0); }
+    if (codEnabled !== undefined) { updateFields.push('cod_enabled = ?'); updateValues.push(codEnabled ? 1 : 0); }
+    if (signatureUrl !== undefined) { updateFields.push('signature_url = ?'); updateValues.push(signatureUrl || null); }
+    if (businessAddress !== undefined) { updateFields.push('business_address = ?'); updateValues.push(businessAddress || null); }
+    if (whatsappNumber !== undefined) { updateFields.push('whatsapp_number = ?'); updateValues.push(whatsappNumber || null); }
+
+    if (updateFields.length > 0) {
+      updateValues.push(vendor.id);
+      await conn.query(`UPDATE vendors SET ${updateFields.join(', ')} WHERE id = ?`, updateValues);
+    }
+
+    console.log('[VENDOR PROFILE PUT] Updated vendor', vendor.id, 'fields:', updateFields.length, 'logo_url:', logoUrl || 'not changed', 'banner_url:', bannerUrl || 'not changed');
     return res.json({ status: 'success', message: 'Vendor profile updated.' });
   } finally {
     conn.release();
@@ -126,6 +143,26 @@ router.delete('/coupons/:id', authenticate, requireRole('vendor'), async (req: A
 });
 
 // ============ PRODUCT OFFERS ============
+router.get('/offers', authenticate, requireRole('vendor'), async (req: AuthRequest, res: Response) => {
+  const conn = await pool.getConnection();
+  try {
+    const vendor = await getVendor(conn, req.user!.userId);
+    if (!vendor) return res.status(403).json({ status: 'error', message: 'Vendor not found', errors: [] });
+
+    const [offers] = await conn.query(
+      `SELECT po.*, p.name as product_name, p.price as original_price, pi.image_url as product_image
+       FROM product_offers po
+       JOIN products p ON p.id = po.product_id AND p.vendor_id = ?
+       LEFT JOIN product_images pi ON pi.product_id = p.id AND pi.is_primary = true
+       ORDER BY po.ends_at DESC`,
+      [vendor.id]
+    ) as any[];
+    return res.json({ status: 'success', offers });
+  } finally {
+    conn.release();
+  }
+});
+
 router.post('/products/:id/offer', authenticate, requireRole('vendor'), async (req: AuthRequest, res: Response) => {
   const { offerPrice, startsAt, endsAt } = req.body;
   const conn = await pool.getConnection();
@@ -144,6 +181,61 @@ router.post('/products/:id/offer', authenticate, requireRole('vendor'), async (r
     await conn.query('DELETE FROM product_offers WHERE product_id = ?', [req.params.id]);
     await conn.query('INSERT INTO product_offers (product_id, offer_price, starts_at, ends_at) VALUES (?, ?, ?, ?)', [req.params.id, offerPrice, startsAt, endsAt]);
     return res.json({ status: 'success', message: 'Offer created.' });
+  } finally {
+    conn.release();
+  }
+});
+
+// Bulk offer - apply percentage discount to multiple products
+router.post('/offers/bulk', authenticate, requireRole('vendor'), async (req: AuthRequest, res: Response) => {
+  const { productIds, discountPercent, startsAt, endsAt } = req.body;
+  if (!productIds?.length || !discountPercent || !startsAt || !endsAt) {
+    return res.status(400).json({ status: 'error', message: 'All fields are required.', errors: [] });
+  }
+  if (discountPercent <= 0 || discountPercent >= 100) {
+    return res.status(400).json({ status: 'error', message: 'Discount must be between 1-99%.', errors: [] });
+  }
+  const conn = await pool.getConnection();
+  try {
+    const vendor = await getVendor(conn, req.user!.userId);
+    if (!vendor) return res.status(403).json({ status: 'error', message: 'Vendor not found', errors: [] });
+
+    const [products] = await conn.query(
+      'SELECT id, price FROM products WHERE id IN (?) AND vendor_id = ? AND status = "active"',
+      [productIds, vendor.id]
+    ) as any[];
+
+    let created = 0;
+    for (const p of products as any[]) {
+      const offerPrice = Math.round(p.price * (1 - discountPercent / 100) * 100) / 100;
+      await conn.query('DELETE FROM product_offers WHERE product_id = ?', [p.id]);
+      await conn.query('INSERT INTO product_offers (product_id, offer_price, starts_at, ends_at) VALUES (?, ?, ?, ?)', [p.id, offerPrice, startsAt, endsAt]);
+      created++;
+    }
+
+    return res.json({ status: 'success', message: `Offer applied to ${created} products.` });
+  } finally {
+    conn.release();
+  }
+});
+
+router.put('/products/:id/offer', authenticate, requireRole('vendor'), async (req: AuthRequest, res: Response) => {
+  const { offerPrice, startsAt, endsAt } = req.body;
+  const conn = await pool.getConnection();
+  try {
+    const vendor = await getVendor(conn, req.user!.userId);
+    if (!vendor) return res.status(403).json({ status: 'error', message: 'Vendor not found', errors: [] });
+
+    const [products] = await conn.query('SELECT price FROM products WHERE id = ? AND vendor_id = ?', [req.params.id, vendor.id]) as any[];
+    if (products.length === 0) return res.status(404).json({ status: 'error', message: 'Product not found', errors: [] });
+
+    if (Number(offerPrice) >= Number(products[0].price)) {
+      return res.status(400).json({ status: 'error', message: 'Offer price must be less than retail price', errors: [] });
+    }
+
+    await conn.query('DELETE FROM product_offers WHERE product_id = ?', [req.params.id]);
+    await conn.query('INSERT INTO product_offers (product_id, offer_price, starts_at, ends_at) VALUES (?, ?, ?, ?)', [req.params.id, offerPrice, startsAt, endsAt]);
+    return res.json({ status: 'success', message: 'Offer updated.' });
   } finally {
     conn.release();
   }
@@ -527,6 +619,92 @@ router.get('/products/import/template', authenticate, requireRole('vendor'), (re
   res.setHeader('Content-Type', 'text/csv');
   res.setHeader('Content-Disposition', 'attachment; filename="product_import_template.csv"');
   return res.send(csv);
+});
+
+// ============ VENDOR NOTIFICATIONS ============
+
+// GET /api/v1/vendor/customers - Get vendor's customers (who ordered from them)
+router.get('/customers', authenticate, requireRole('vendor'), async (req: AuthRequest, res: Response) => {
+  const conn = await pool.getConnection();
+  try {
+    const vendor = await getVendor(conn, req.user!.userId);
+    if (!vendor) return res.status(403).json({ status: 'error', message: 'Vendor not found', errors: [] });
+
+    const [customers] = await conn.query(
+      `SELECT DISTINCT u.id, u.email, u.first_name, u.last_name, u.phone
+       FROM users u
+       JOIN orders o ON o.user_id = u.id
+       JOIN order_items oi ON oi.order_id = o.id AND oi.vendor_id = ?
+       ORDER BY u.first_name`,
+      [vendor.id]
+    ) as any[];
+    return res.json({ status: 'success', customers, total: customers.length });
+  } finally {
+    conn.release();
+  }
+});
+
+// POST /api/v1/vendor/notifications/send-email - Send email to vendor's customers
+router.post('/notifications/send-email', authenticate, requireRole('vendor'), async (req: AuthRequest, res: Response) => {
+  const { subject, message } = req.body;
+  if (!subject || !message) {
+    return res.status(400).json({ status: 'error', message: 'Subject and message are required.', errors: [] });
+  }
+
+  const conn = await pool.getConnection();
+  try {
+    const vendor = await getVendor(conn, req.user!.userId);
+    if (!vendor) return res.status(403).json({ status: 'error', message: 'Vendor not found', errors: [] });
+
+    const [customers] = await conn.query(
+      `SELECT DISTINCT u.email, u.first_name
+       FROM users u
+       JOIN orders o ON o.user_id = u.id
+       JOIN order_items oi ON oi.order_id = o.id AND oi.vendor_id = ?`,
+      [vendor.id]
+    ) as any[];
+
+    if (customers.length === 0) {
+      return res.status(400).json({ status: 'error', message: 'No customers found.', errors: [] });
+    }
+
+    const nodemailer = require('nodemailer');
+    const transporter = nodemailer.createTransport({
+      host: process.env.SMTP_HOST,
+      port: Number(process.env.SMTP_PORT) || 587,
+      secure: false,
+      auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS },
+    });
+
+    let sent = 0, failed = 0;
+    for (const customer of customers as any[]) {
+      try {
+        await transporter.sendMail({
+          from: process.env.SMTP_FROM || 'noreply@marketplace.com',
+          to: customer.email,
+          subject: subject,
+          html: `
+            <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:20px;">
+              <div style="background:linear-gradient(135deg,#1f2937,#374151);padding:20px;border-radius:12px;margin-bottom:20px;">
+                <h1 style="color:white;margin:0;font-size:20px;">${vendor.store_name}</h1>
+                <p style="color:#9ca3af;margin:4px 0 0;font-size:12px;">via MarketHub</p>
+              </div>
+              <p style="color:#374151;">Hi ${customer.first_name || 'there'},</p>
+              <div style="background:#f9fafb;border-radius:8px;padding:20px;margin:16px 0;border:1px solid #e5e7eb;">
+                ${message.replace(/\n/g, '<br/>')}
+              </div>
+              <p style="color:#6b7280;font-size:12px;margin-top:20px;">From ${vendor.store_name} on MarketHub.</p>
+            </div>
+          `,
+        });
+        sent++;
+      } catch { failed++; }
+    }
+
+    return res.json({ status: 'success', message: `Sent to ${sent} customers. ${failed > 0 ? `${failed} failed.` : ''}`, sent, failed });
+  } finally {
+    conn.release();
+  }
 });
 
 export default router;

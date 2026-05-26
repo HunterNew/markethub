@@ -246,6 +246,7 @@ router.get('/:id', optionalAuth, async (req: AuthRequest, res: Response) => {
     const [products] = await conn.query(
       `SELECT p.*, c.name as category_name, c.slug as category_slug,
         v.store_name, v.store_slug, v.description as vendor_description, v.logo_url as vendor_logo,
+        v.return_policy_enabled, v.cod_enabled,
         tc.rate as tax_rate,
         po.offer_price, po.ends_at as offer_ends_at,
         CASE WHEN po.id IS NOT NULL THEN true ELSE false END as is_on_sale,

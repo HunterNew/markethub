@@ -1,7 +1,8 @@
 import React from 'react'
 import { BrowserRouter, Routes, Route } from 'react-router-dom'
-import { AuthProvider } from './context/AuthContext'
+import { AuthProvider, useAuth } from './context/AuthContext'
 import { CartProvider } from './context/CartContext'
+import api from './api/client'
 import ProtectedRoute from './components/layout/ProtectedRoute'
 import Header from './components/layout/Header'
 import Footer from './components/layout/Footer'
@@ -10,6 +11,7 @@ import Footer from './components/layout/Footer'
 import HomePage from './pages/Home'
 import ProductsPage from './pages/Products'
 import ProductDetail from './pages/ProductDetail'
+import InvoicePage from './pages/Invoice'
 import CartPage from './pages/Cart'
 import CheckoutPage from './pages/Checkout'
 import VendorStorePage from './pages/VendorStore'
@@ -21,12 +23,12 @@ import {
 import { CustomerProfilePage, VendorProfilePage, AdminProfilePage } from './pages/ProfilePage'
 import {
   VendorDashboard, VendorProducts, VendorOrders,
-  VendorCoupons, VendorEarnings
+  VendorCoupons, VendorEarnings, VendorOffers, VendorReviews, VendorNotifications
 } from './pages/vendor/VendorPages'
 import {
   AdminDashboard, AdminVendors, AdminProducts,
   AdminOrders, AdminReports, AdminSettings, AdminWithdrawals,
-  AdminCategories, AdminCoupons
+  AdminCategories, AdminCoupons, AdminBanners, AdminPromoCards, AdminReturns, AdminReviews, AdminNotifications
 } from './pages/admin/AdminPages'
 
 function MainLayout({ children }: { children: React.ReactNode }) {
@@ -61,6 +63,11 @@ export default function App() {
             <Route path="/order-confirmation/:id" element={
               <ProtectedRoute roles={['customer']}>
                 <MainLayout><OrderConfirmationPage /></MainLayout>
+              </ProtectedRoute>
+            } />
+            <Route path="/invoice/:id" element={
+              <ProtectedRoute roles={['customer', 'vendor', 'admin']}>
+                <InvoicePage />
               </ProtectedRoute>
             } />
 
@@ -117,6 +124,21 @@ export default function App() {
                 <VendorCoupons />
               </ProtectedRoute>
             } />
+            <Route path="/vendor/offers" element={
+              <ProtectedRoute roles={['vendor']}>
+                <VendorOffers />
+              </ProtectedRoute>
+            } />
+            <Route path="/vendor/reviews" element={
+              <ProtectedRoute roles={['vendor']}>
+                <VendorReviews />
+              </ProtectedRoute>
+            } />
+            <Route path="/vendor/notifications" element={
+              <ProtectedRoute roles={['vendor']}>
+                <VendorNotifications />
+              </ProtectedRoute>
+            } />
             <Route path="/vendor/earnings" element={
               <ProtectedRoute roles={['vendor']}>
                 <VendorEarnings />
@@ -162,6 +184,31 @@ export default function App() {
             <Route path="/admin/coupons" element={
               <ProtectedRoute roles={['admin']}>
                 <AdminCoupons />
+              </ProtectedRoute>
+            } />
+            <Route path="/admin/banners" element={
+              <ProtectedRoute roles={['admin']}>
+                <AdminBanners />
+              </ProtectedRoute>
+            } />
+            <Route path="/admin/promo-cards" element={
+              <ProtectedRoute roles={['admin']}>
+                <AdminPromoCards />
+              </ProtectedRoute>
+            } />
+            <Route path="/admin/returns" element={
+              <ProtectedRoute roles={['admin']}>
+                <AdminReturns />
+              </ProtectedRoute>
+            } />
+            <Route path="/admin/reviews" element={
+              <ProtectedRoute roles={['admin']}>
+                <AdminReviews />
+              </ProtectedRoute>
+            } />
+            <Route path="/admin/notifications" element={
+              <ProtectedRoute roles={['admin']}>
+                <AdminNotifications />
               </ProtectedRoute>
             } />
             <Route path="/admin/reports" element={
@@ -211,8 +258,13 @@ export default function App() {
               </MainLayout>
             } />
           </Routes>
+          <WhatsAppSupport />
         </CartProvider>
       </AuthProvider>
     </BrowserRouter>
   )
+}
+
+function WhatsAppSupport() {
+  return null
 }
