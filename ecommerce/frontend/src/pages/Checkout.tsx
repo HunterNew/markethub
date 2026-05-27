@@ -77,7 +77,7 @@ export default function CheckoutPage() {
           key: 'rzp_test_SpEw8OA2Q6EfK6',
           amount: data.amount,
           currency: data.currency,
-          name: 'MarketHub',
+          name: 'GoMarts',
           description: 'Order Payment',
           order_id: razorpayOrderId,
           prefill: {

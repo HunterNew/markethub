@@ -561,13 +561,13 @@ router.post('/notifications/send-email', authenticate, requireRole('admin'), asy
           html: `
             <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:20px;">
               <div style="background:linear-gradient(135deg,#f97316,#ea580c);padding:20px;border-radius:12px;margin-bottom:20px;">
-                <h1 style="color:white;margin:0;font-size:24px;">MarketHub</h1>
+                <h1 style="color:white;margin:0;font-size:24px;">GoMarts</h1>
               </div>
               <p style="color:#374151;">Hi ${customer.first_name || 'there'},</p>
               <div style="background:#f9fafb;border-radius:8px;padding:20px;margin:16px 0;border:1px solid #e5e7eb;">
                 ${message.replace(/\n/g, '<br/>')}
               </div>
-              <p style="color:#6b7280;font-size:12px;margin-top:20px;">You're receiving this because you're a registered customer on MarketHub.</p>
+              <p style="color:#6b7280;font-size:12px;margin-top:20px;">You're receiving this because you're a registered customer on GoMarts.</p>
             </div>
           `,
         });

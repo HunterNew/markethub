@@ -239,7 +239,7 @@ export function CustomerProfilePage() {
     <CustomerLayout>
       <ProfileContent />
       <div className="px-6 sm:px-8 pb-6">
-        <a href={`https://wa.me/${adminWhatsapp}?text=${encodeURIComponent('Hi, I need help with my account on MarketHub.')}`} target="_blank" rel="noopener noreferrer"
+        <a href={`https://wa.me/${adminWhatsapp}?text=${encodeURIComponent('Hi, I need help with my account on GoMarts.')}`} target="_blank" rel="noopener noreferrer"
           className="border border-gray-200 rounded-xl p-4 bg-white flex items-center justify-between w-full hover:border-green-300 transition-colors">
           <div>
             <p className="font-bold text-gray-900 text-sm">Need Help?</p>

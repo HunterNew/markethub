@@ -108,13 +108,14 @@ export default function Header() {
           </button>
 
           {/* Logo */}
-          <Link to="/" className="flex items-center gap-2 flex-shrink-0">
-            <div className="w-8 h-8 bg-gradient-to-br from-primary-500 to-primary-700 rounded-lg flex items-center justify-center">
-              <Store size={16} className="text-white" />
+          <Link to="/" className="flex items-center gap-1.5 flex-shrink-0">
+            <img src="/logo.png" alt="GoMarts" className="h-14 w-14 object-contain" />
+            <div className="hidden sm:block" style={{ marginTop: '12px' }}>
+              <span className="font-bold text-xl block" style={{ marginBottom: '-12px' }}>
+                <span className="text-[#1e3a5f]">Go</span><span className="text-primary-500">Marts</span>
+              </span>
+              <span className="text-[9px] text-gray-400 font-medium tracking-wide">Shop Easy. Go Fast.</span>
             </div>
-            <span className="font-bold text-gray-900 text-lg hidden sm:block">
-              Market<span className="text-primary-500">Hub</span>
-            </span>
           </Link>
 
           {/* Search - hidden on mobile, shown in mobile menu */}
@@ -293,7 +294,7 @@ export default function Header() {
           <div className="ml-auto">
             {!user && (
               <Link to="/auth/register?role=vendor" className="text-sm text-primary-600 hover:text-primary-700 font-semibold flex items-center gap-1">
-                <Store size={14} /> Sell on MarketHub
+                <Store size={14} /> Sell on GoMarts
               </Link>
             )}
           </div>
@@ -371,7 +372,7 @@ export default function Header() {
             <div className="mt-4 pt-4 border-t border-gray-100">
               <Link to="/auth/register?role=vendor" onClick={() => setMobileOpen(false)}
                 className="flex items-center gap-2 text-sm text-primary-600 font-medium">
-                <Store size={14} /> Sell on MarketHub
+                <Store size={14} /> Sell on GoMarts
               </Link>
             </div>
           )}

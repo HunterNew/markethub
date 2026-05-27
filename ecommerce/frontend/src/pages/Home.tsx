@@ -63,7 +63,7 @@ function BannerSlider() {
   const handleClick = (banner: Banner) => {
     if (banner.link_url) {
       if (banner.link_url.startsWith('http')) {
-        window.open(banner.link_url, '_blank')
+        window.location.href = banner.link_url
       } else {
         navigate(banner.link_url)
       }

@@ -9,11 +9,14 @@ export default function Footer() {
         <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-4 gap-6 sm:gap-8">
           {/* Brand */}
           <div className="col-span-2 md:col-span-1">
-            <div className="flex items-center gap-2 mb-3">
-              <div className="w-8 h-8 bg-gradient-to-br from-primary-500 to-primary-700 rounded-lg flex items-center justify-center">
-                <Store size={16} className="text-white" />
-              </div>
-              <span className="font-bold text-white text-lg">Market<span className="text-primary-400">Hub</span></span>
+            <div className="flex items-center gap-1.5 mb-2">
+              <img src="/logo.png" alt="GoMarts" className="h-10 w-10 object-contain" />
+               <div className="hidden sm:block" style={{ marginTop: '12px' }}>
+              <span className="font-bold text-xl block" style={{ marginBottom: '-12px' }}>
+                <span className="text-[#1e3a5f]">Go</span><span className="text-primary-500">Marts</span>
+              </span>
+              <span className="text-[9px] text-gray-400 font-medium tracking-wide">Shop Easy. Go Fast.</span>
+            </div>
             </div>
             <p className="text-sm text-gray-400 mb-3">India's fastest-growing multi-vendor marketplace.</p>
             <div className="flex gap-3">
@@ -64,15 +67,15 @@ export default function Footer() {
             <ul className="space-y-2 text-xs sm:text-sm">
               <li className="flex items-start gap-2">
                 <MapPin size={14} className="text-primary-400 mt-0.5 flex-shrink-0" />
-                <span>123 Market Street, Mumbai 400001</span>
+                <span>Eathamozhy (p.o), K.K Dist-629501.</span>
               </li>
               <li className="flex items-center gap-2">
                 <Phone size={14} className="text-primary-400 flex-shrink-0" />
-                <span>+91 98765 43210</span>
+                <span>+91 8277683045</span>
               </li>
               <li className="flex items-center gap-2">
                 <Mail size={14} className="text-primary-400 flex-shrink-0" />
-                <span>support@markethub.com</span>
+                <span>gomarts@gmail.com</span>
               </li>
             </ul>
           </div>
@@ -80,7 +83,7 @@ export default function Footer() {
       </div>
       <div className="border-t border-gray-800">
         <div className="page-container py-4 flex flex-col sm:flex-row items-center justify-between gap-2 text-xs text-gray-500">
-          <span>© 2025 MarketHub. All rights reserved.</span>
+          <span>© {new Date().getFullYear()} GoMarts. All rights reserved.</span>
           <div className="flex gap-4">
             <Link to="#" className="hover:text-primary-400">Privacy</Link>
             <Link to="#" className="hover:text-primary-400">Terms</Link>

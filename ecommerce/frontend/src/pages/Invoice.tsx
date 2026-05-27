@@ -54,7 +54,7 @@ export default function InvoicePage() {
   const orderDate = new Date(order.created_at).toLocaleDateString('en-IN', { day: '2-digit', month: '2-digit', year: 'numeric' })
   const isVendor = user?.role === 'vendor'
   const vendor = order.items?.[0] || {}
-  const vendorName = vendor.vendor_name || 'MarketHub Seller'
+  const vendorName = vendor.vendor_name || 'GoMarts Seller'
   const vendorGst = vendor.vendor_gst || ''
   const vendorFssai = vendor.vendor_fssai || ''
   const vendorAddress = vendor.vendor_address || ''
@@ -88,9 +88,14 @@ export default function InvoicePage() {
           
           {/* Header */}
           <div className="border-b border-gray-800 p-5 flex items-start justify-between">
-            <div>
-              <h1 className="text-2xl font-bold text-gray-900">MarketHub</h1>
-              <p className="text-[10px] text-gray-500 mt-0.5">Multi-Vendor Marketplace</p>
+            <div className="flex items-center gap-2">
+              <img src="/logo.png" alt="GoMarts" style={{ height: '40px', width: '40px', objectFit: 'contain' }} />
+              <div>
+                <p className="font-bold text-xl" style={{ marginBottom: '-4px' }}>
+                  <span style={{ color: '#1e3a5f' }}>Go</span><span style={{ color: '#f97316' }}>Marts</span>
+                </p>
+                <span style={{ fontSize: '9px', color: '#9ca3af' }}>Shop Easy. Go Fast.</span>
+              </div>
             </div>
             <div className="text-right">
               <h2 className="text-base font-bold text-gray-900">Tax Invoice/Bill of Supply/Cash Memo</h2>

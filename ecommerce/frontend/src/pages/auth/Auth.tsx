@@ -37,11 +37,14 @@ export function LoginPage() {
     <div className="min-h-screen bg-gradient-to-br from-orange-50 to-white flex items-center justify-center p-4">
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
-          <Link to="/" className="inline-flex items-center gap-2 mb-6">
-            <div className="w-10 h-10 bg-gradient-to-br from-primary-500 to-primary-700 rounded-xl flex items-center justify-center">
-              <Store size={20} className="text-white" />
+          <Link to="/" className="inline-flex items-center gap-1 mb-2" style={{marginLeft:'-6px'}}>
+             <img src="/logo.png" alt="GoMarts" className="h-14 w-14 object-contain" />
+            <div className="hidden sm:block" style={{ marginTop: '12px' }}>
+              <span className="font-bold text-xl block" style={{ marginBottom: '-12px' }}>
+                <span className="text-[#1e3a5f]">Go</span><span className="text-primary-500">Marts</span>
+              </span>
+              <span className="text-[9px] text-gray-400 font-medium tracking-wide">Shop Easy. Go Fast.</span>
             </div>
-            <span className="font-bold text-gray-900 text-xl">Market<span className="text-primary-500">Hub</span></span>
           </Link>
           <h1 className="text-2xl font-bold text-gray-900">Welcome back</h1>
           <p className="text-gray-500 text-sm mt-1">Sign in to your account</p>
@@ -221,11 +224,14 @@ export function RegisterPage() {
     <div className="min-h-screen bg-gradient-to-br from-orange-50 to-white flex items-center justify-center p-4">
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
-          <Link to="/" className="inline-flex items-center gap-2 mb-6">
-            <div className="w-10 h-10 bg-gradient-to-br from-primary-500 to-primary-700 rounded-xl flex items-center justify-center">
-              <Store size={20} className="text-white" />
+          <Link to="/" className="inline-flex items-center gap-1 mb-2">
+            <img src="/logo.png" alt="GoMarts" className="h-14 w-14 object-contain" />
+            <div className="hidden sm:block" style={{ marginTop: '12px' }}>
+              <span className="font-bold text-xl block" style={{ marginBottom: '-12px' }}>
+                <span className="text-[#1e3a5f]">Go</span><span className="text-primary-500">Marts</span>
+              </span>
+              <span className="text-[9px] text-gray-400 font-medium tracking-wide">Shop Easy. Go Fast.</span>
             </div>
-            <span className="font-bold text-gray-900 text-xl">Market<span className="text-primary-500">Hub</span></span>
           </Link>
           <h1 className="text-2xl font-bold text-gray-900">Create account</h1>
           <p className="text-gray-500 text-sm mt-1">Join thousands of shoppers and sellers</p>
@@ -391,11 +397,14 @@ export function ForgotPasswordPage() {
     <div className="min-h-screen bg-gradient-to-br from-orange-50 to-white flex items-center justify-center p-4">
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
-          <Link to="/" className="inline-flex items-center gap-2 mb-6">
-            <div className="w-10 h-10 bg-gradient-to-br from-primary-500 to-primary-700 rounded-xl flex items-center justify-center">
-              <Store size={20} className="text-white" />
+          <Link to="/" className="inline-flex items-center gap-1 mb-2">
+            <img src="/logo.png" alt="GoMarts" className="h-14 w-14 object-contain" />
+            <div className="hidden sm:block" style={{ marginTop: '12px' }}>
+              <span className="font-bold text-xl block" style={{ marginBottom: '-12px' }}>
+                <span className="text-[#1e3a5f]">Go</span><span className="text-primary-500">Marts</span>
+              </span>
+              <span className="text-[9px] text-gray-400 font-medium tracking-wide">Shop Easy. Go Fast.</span>
             </div>
-            <span className="font-bold text-gray-900 text-xl">Market<span className="text-primary-500">Hub</span></span>
           </Link>
           <h1 className="text-2xl font-bold text-gray-900">Reset your password</h1>
           <p className="text-gray-500 text-sm mt-1">We'll send you a link to reset your password</p>
@@ -500,11 +509,14 @@ export function ResetPasswordPage() {
     <div className="min-h-screen bg-gradient-to-br from-orange-50 to-white flex items-center justify-center p-4">
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
-          <Link to="/" className="inline-flex items-center gap-2 mb-6">
-            <div className="w-10 h-10 bg-gradient-to-br from-primary-500 to-primary-700 rounded-xl flex items-center justify-center">
-              <Store size={20} className="text-white" />
+          <Link to="/" className="inline-flex items-center gap-1 mb-2">
+             <img src="/logo.png" alt="GoMarts" className="h-14 w-14 object-contain" />
+            <div className="hidden sm:block" style={{ marginTop: '12px' }}>
+              <span className="font-bold text-xl block" style={{ marginBottom: '-12px' }}>
+                <span className="text-[#1e3a5f]">Go</span><span className="text-primary-500">Marts</span>
+              </span>
+              <span className="text-[9px] text-gray-400 font-medium tracking-wide">Shop Easy. Go Fast.</span>
             </div>
-            <span className="font-bold text-gray-900 text-xl">Market<span className="text-primary-500">Hub</span></span>
           </Link>
           <h1 className="text-2xl font-bold text-gray-900">Set new password</h1>
           <p className="text-gray-500 text-sm mt-1">Enter your new password below</p>

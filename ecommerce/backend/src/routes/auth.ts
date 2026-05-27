@@ -364,7 +364,7 @@ router.post('/forgot-password', async (req: Request, res: Response) => {
       await transporter.sendMail({
         from: process.env.SMTP_FROM || 'noreply@marketplace.com',
         to: email.toLowerCase(),
-        subject: 'Reset Your Password - MarketHub',
+        subject: 'Reset Your Password - GoMarts',
         html: `
           <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto;">
             <h2>Reset Your Password</h2>
@@ -504,10 +504,10 @@ router.post('/send-otp', async (req: Request, res: Response) => {
     await transporter.sendMail({
       from: process.env.SMTP_FROM || 'noreply@marketplace.com',
       to: email.toLowerCase(),
-      subject: 'Your MarketHub Verification Code',
+      subject: 'Your GoMarts Verification Code',
       html: `
         <div style="font-family:Arial,sans-serif;max-width:400px;margin:0 auto;padding:20px;">
-          <h2 style="color:#f97316;">MarketHub</h2>
+          <h2 style="color:#f97316;">GoMarts</h2>
           <p>Your verification code is:</p>
           <div style="background:#f3f4f6;border-radius:8px;padding:20px;text-align:center;margin:20px 0;">
             <span style="font-size:32px;font-weight:bold;letter-spacing:8px;color:#1f2937;">${code}</span>
