@@ -125,7 +125,7 @@ export default function ProductDetail() {
               <img
                 src={images[selectedImage]?.image_url || 'https://via.placeholder.com/600'}
                 alt={product.name}
-                className="w-full h-full object-cover transition-opacity duration-300"
+                className="w-full h-full object-contain transition-opacity duration-300"
               />
               {images.length > 1 && (
                 <>
@@ -180,7 +180,10 @@ export default function ProductDetail() {
               </div>
             )}
 
-            <h1 className="text-2xl md:text-3xl font-bold text-gray-900">{product.name}</h1>
+            <h1 className="text-2xl md:text-3xl font-bold text-gray-900">
+              {product.name}
+              {product.unit && product.unit_value && Math.round(Number(product.unit_value)) > 0 && <span className="text-base font-normal text-gray-400 ml-2">({Math.round(Number(product.unit_value))} {product.unit})</span>}
+            </h1>
 
             {/* Rating */}
             <div className="flex items-center gap-2">
@@ -196,31 +199,49 @@ export default function ProductDetail() {
 
             {/* Price */}
             <div className="bg-orange-50 rounded-2xl p-4 border border-orange-100">
-              <div className="flex items-end gap-3 flex-wrap">
+              <div className="flex items-baseline gap-2 flex-wrap">
+                {/* Discount % */}
+                {!selectedVariant && !product.has_variants && (
+                  (discount > 0) ? (
+                    <span className="text-xl text-red-500 font-bold">-{discount}%</span>
+                  ) : product.mrp && Number(product.mrp) > Number(product.price) ? (
+                    <span className="text-xl text-red-500 font-bold">-{Math.round((1 - Number(product.price) / Number(product.mrp)) * 100)}%</span>
+                  ) : null
+                )}
+                {selectedVariant && isWholesaleApplicable && (
+                  <span className="text-xl text-red-500 font-bold">-{Math.round((1 - wholesaleDiscountRatio) * 100)}%</span>
+                )}
+                {/* Price */}
                 <span className="text-3xl font-bold text-gray-900">{formatCurrency(displayPrice)}</span>
-                {selectedVariant && isWholesaleApplicable && (
-                  <span className="text-lg text-gray-400 line-through">{formatCurrency(selectedVariant.price)}</span>
-                )}
-                {(!!product.is_on_sale || isWholesaleApplicable) && !selectedVariant && !product.has_variants && (
-                  <span className="text-lg text-gray-400 line-through">{formatCurrency(product.price)}</span>
-                )}
-                {/* MRP strikethrough when no sale/wholesale active */}
-                {!product.is_on_sale && !isWholesaleApplicable && !selectedVariant && !product.has_variants && product.mrp && Number(product.mrp) > Number(product.price) && (
-                  <span className="text-lg text-gray-400 line-through">{formatCurrency(Number(product.mrp))}</span>
-                )}
-                {discount > 0 && !selectedVariant && !product.has_variants && (
-                  <span className="bg-red-500 text-white text-sm font-bold px-2 py-0.5 rounded-full">-{discount}%</span>
-                )}
-                {/* MRP discount badge */}
-                {!product.is_on_sale && !isWholesaleApplicable && !selectedVariant && !product.has_variants && product.mrp && Number(product.mrp) > Number(product.price) && (
-                  <span className="bg-green-500 text-white text-sm font-bold px-2 py-0.5 rounded-full">-{Math.round((1 - Number(product.price) / Number(product.mrp)) * 100)}%</span>
-                )}
-                {selectedVariant && isWholesaleApplicable && (
-                  <span className="bg-blue-500 text-white text-sm font-bold px-2 py-0.5 rounded-full">
-                    -{Math.round((1 - wholesaleDiscountRatio) * 100)}%
+                {/* Unit - price per base unit */}
+                {product.unit && product.unit_value && Number(product.unit_value) >= 1 && (
+                  <span className="text-sm text-gray-400">
+                    ({formatCurrency(
+                      (() => {
+                        const price = displayPrice
+                        const val = Number(product.unit_value)
+                        const unit = product.unit
+                        if (unit === 'ml') return (price / val) * 1000
+                        if (unit === 'g') return (price / val) * 1000
+                        if (unit === 'ltr') return price / val
+                        if (unit === 'kg') return price / val
+                        return price / val
+                      })()
+                    )} / {product.unit === 'ml' ? 'L' : product.unit === 'g' ? 'Kg' : product.unit === 'ltr' ? 'L' : product.unit === 'kg' ? 'Kg' : product.unit?.toUpperCase()})
                   </span>
                 )}
               </div>
+              {/* MRP line */}
+              {!selectedVariant && !product.has_variants && (
+                (!!product.is_on_sale || isWholesaleApplicable) ? (
+                  <p className="text-sm text-gray-500 mt-1">M.R.P.: <span className="line-through">{formatCurrency(product.price)}</span></p>
+                ) : product.mrp && Number(product.mrp) > Number(product.price) ? (
+                  <p className="text-sm text-gray-500 mt-1">M.R.P.: <span className="line-through">{formatCurrency(Number(product.mrp))}</span></p>
+                ) : null
+              )}
+              {selectedVariant && isWholesaleApplicable && (
+                <p className="text-sm text-gray-500 mt-1">M.R.P.: <span className="line-through">{formatCurrency(selectedVariant.price)}</span></p>
+              )}
               {qty > 1 && (
                 <p className="text-sm font-semibold text-gray-700 mt-1">
                   Total: {formatCurrency(displayPrice * qty)} <span className="text-xs text-gray-400 font-normal">({qty} × {formatCurrency(displayPrice)})</span>

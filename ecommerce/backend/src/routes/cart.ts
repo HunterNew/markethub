@@ -88,7 +88,7 @@ router.get('/', authenticate, async (req: AuthRequest, res: Response) => {
 
     const [items] = await conn.query(
       `SELECT ci.*, p.name, p.stock_quantity as product_stock, p.price as product_price, p.wholesale_price, p.wholesale_min_qty,
-        p.wholesale_enabled, p.weight_kg, p.delivery_type as product_delivery_type, p.delivery_charge as product_delivery_charge,
+        p.wholesale_enabled, p.weight_kg, p.unit, p.unit_value, p.delivery_type as product_delivery_type, p.delivery_charge as product_delivery_charge,
         pi.image_url as primary_image, v.store_name, v.cod_enabled,
         v.delivery_type as vendor_delivery_type, v.delivery_charge_per_product, v.delivery_charge_per_kg, v.free_delivery_above,
         po.offer_price, CASE WHEN po.id IS NOT NULL THEN true ELSE false END as is_on_sale,

@@ -416,7 +416,7 @@ function ProductSection({ title, endpoint, viewAllHref }: { title: string; endpo
             }}
           >
             {products.slice(0, 12).map(p => (
-              <div key={p.id} className="flex-shrink-0 w-[calc(50%-6px)] sm:w-[calc(33.33%-8px)] lg:w-[calc(25%-9px)]">
+              <div key={p.id} className="flex-shrink-0 w-[48%] sm:w-[31.5%] lg:w-[24%]">
                 <ProductCard product={p} />
               </div>
             ))}
@@ -505,7 +505,7 @@ function BestSellersSection() {
             }}
           >
             {products.slice(0, 12).map(p => (
-              <div key={p.id} className="flex-shrink-0 w-[calc(50%-6px)] sm:w-[calc(33.33%-8px)] lg:w-[calc(25%-9px)]">
+              <div key={p.id} className="flex-shrink-0 w-[48%] sm:w-[31.5%] lg:w-[24%]">
                 <ProductCard product={p} />
               </div>
             ))}

@@ -139,7 +139,7 @@ export function VendorProducts() {
   const [importResult, setImportResult] = useState<any>(null)
   const [importLoading, setImportLoading] = useState(false)
   const [csvData, setCsvData] = useState('')
-  const [form, setForm] = useState({ name:'', description:'', price:'', mrp:'', categoryId:'', stockQuantity:'', images:[''], wholesaleEnabled:false, wholesalePrice:'', wholesaleMinQty:'', weightKg:'', deliveryType:'vendor_default', deliveryCharge:'', brandId:'' })
+  const [form, setForm] = useState({ name:'', description:'', price:'', mrp:'', categoryId:'', stockQuantity:'', unit:'', unitValue:'', images:[''], wholesaleEnabled:false, wholesalePrice:'', wholesaleMinQty:'', weightKg:'', deliveryType:'vendor_default', deliveryCharge:'', brandId:'' })
   const variantPanelRef = useRef<VariantConfigPanelRef>(null)
   const [showCategoryRequest, setShowCategoryRequest] = useState(false)
   const [catReqForm, setCatReqForm] = useState({ name: '', description: '', parentId: '' })
@@ -168,7 +168,7 @@ export function VendorProducts() {
 
   const setField = (k: string, v: any) => setForm(prev => ({ ...prev, [k]: v }))
 
-  const openAdd = () => { setEditProduct(null); setForm({ name:'', description:'', price:'', mrp:'', categoryId:'', stockQuantity:'', images:[''], wholesaleEnabled:false, wholesalePrice:'', wholesaleMinQty:'', weightKg:'', deliveryType:'vendor_default', deliveryCharge:'', brandId:'' }); setBrands([]); setShowForm(true) }
+  const openAdd = () => { setEditProduct(null); setForm({ name:'', description:'', price:'', mrp:'', categoryId:'', stockQuantity:'', unit:'', unitValue:'', images:[''], wholesaleEnabled:false, wholesalePrice:'', wholesaleMinQty:'', weightKg:'', deliveryType:'vendor_default', deliveryCharge:'', brandId:'' }); setBrands([]); setShowForm(true) }
   const openEdit = async (p: any) => {
     setEditProduct(p)
     // Fetch full product detail to get all images
@@ -180,7 +180,7 @@ export function VendorProducts() {
         imgs = detail.images.map((img: any) => img.image_url)
       }
     } catch { /* use empty */ }
-    setForm({ name: p.name, description: p.description || '', price: String(p.price), mrp: String(p.mrp || ''), categoryId: String(p.category_id), stockQuantity: String(p.stock_quantity), images: imgs, wholesaleEnabled: !!p.wholesale_enabled, wholesalePrice: String(p.wholesale_price || ''), wholesaleMinQty: String(p.wholesale_min_qty || ''), weightKg: String(p.weight_kg || ''), deliveryType: p.delivery_type || 'vendor_default', deliveryCharge: String(p.delivery_charge || ''), brandId: String(p.brand_id || '') })
+    setForm({ name: p.name, description: p.description || '', price: String(p.price), mrp: String(p.mrp || ''), categoryId: String(p.category_id), stockQuantity: String(p.stock_quantity), unit: p.unit || '', unitValue: String(p.unit_value || ''), images: imgs, wholesaleEnabled: !!p.wholesale_enabled, wholesalePrice: String(p.wholesale_price || ''), wholesaleMinQty: String(p.wholesale_min_qty || ''), weightKg: String(p.weight_kg || ''), deliveryType: p.delivery_type || 'vendor_default', deliveryCharge: String(p.delivery_charge || ''), brandId: String(p.brand_id || '') })
     loadBrands(String(p.category_id))
     setShowForm(true)
   }
@@ -291,14 +291,34 @@ export function VendorProducts() {
           <div className="space-y-4">
             <div><label className="label">Product Name *</label><input className="input" value={form.name} onChange={e => setField('name', e.target.value)} placeholder="Product name" /></div>
             <div><label className="label">Description</label><textarea className="input resize-none" rows={3} value={form.description} onChange={e => setField('description', e.target.value)} placeholder="Product description..." /></div>
-            <div className="grid grid-cols-3 gap-4">
+            <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
               <div><label className="label">MRP (₹)</label><input type="number" className="input" value={form.mrp} onChange={e => setField('mrp', e.target.value)} placeholder="0.00" min="0" step="0.01" /></div>
               <div><label className="label">Retail Price (₹) *</label><input type="number" className="input" value={form.price} onChange={e => setField('price', e.target.value)} placeholder="0.00" min="0.01" step="0.01" /></div>
               <div><label className="label">Stock Qty *</label><input type="number" className="input" value={form.stockQuantity} onChange={e => setField('stockQuantity', e.target.value)} placeholder="0" min="0" /></div>
+              <div><label className="label">Net Qty</label><input type="number" className="input" value={form.unitValue} onChange={e => setField('unitValue', e.target.value)} placeholder="e.g. 500" min="0" step="1" /></div>
+              <div><label className="label">Unit</label>
+                <select className="input" value={form.unit} onChange={e => setField('unit', e.target.value)}>
+                  <option value="">None</option>
+                  <option value="pcs">Pieces (pcs)</option>
+                  <option value="g">Grams (g)</option>
+                  <option value="kg">Kilograms (kg)</option>
+                  <option value="ml">Millilitres (ml)</option>
+                  <option value="ltr">Litres (ltr)</option>
+                  <option value="m">Meters (m)</option>
+                  <option value="cm">Centimeters (cm)</option>
+                  <option value="inch">Inches (inch)</option>
+                  <option value="pack">Pack</option>
+                  <option value="box">Box</option>
+                  <option value="set">Set</option>
+                  <option value="pair">Pair</option>
+                  <option value="dozen">Dozen</option>
+                </select>
+              </div>
             </div>
             <div>
-              <label className="label">Weight (KG) — for delivery calculation</label>
-              <input type="number" className="input" value={form.weightKg} onChange={e => setField('weightKg', e.target.value)} placeholder="e.g. 0.5" min="0" step="0.1" />
+              <label className="label">Shipping Weight (KG) — actual package weight for delivery</label>
+              <input type="number" className="input" value={form.weightKg} onChange={e => setField('weightKg', e.target.value)} placeholder="e.g. 0.1 for 100g, 0.5 for 500g, 1 for 1kg" min="0" step="0.01" />
+              <p className="text-[10px] text-gray-400 mt-1">Enter in KG. Example: 100ml oil = 0.1, 1L bottle = 1, 5kg rice = 5</p>
             </div>
             <div className="border border-gray-200 rounded-xl p-4">
               <label className="label">Delivery Charge Type</label>
@@ -331,6 +351,8 @@ export function VendorProducts() {
               <button type="button" onClick={() => { setShowBrandRequest(true); setBrandReqForm({ brandName: '', categoryId: form.categoryId }) }} className="text-xs text-primary-500 hover:text-primary-700 mt-1">Can't find your brand? Request one →</button>
             </div>
             <div><label className="label">Product Images</label>
+              <p className="text-[10px] text-gray-400 mb-2">Recommended: 800×800px (square), max 5 images. Use white/clean background for best results.</p>
+              <p className="text-xs text-gray-400 mb-2">Recommended: 800×800px (square). Min 500×500px. Max 5 images. Use white/clean background for best display.</p>
               <div className="space-y-2">
                 {form.images.map((url, i) => (
                   <div key={i} className="flex gap-2 items-center">
@@ -418,9 +440,12 @@ export function VendorProducts() {
           {!importResult ? (
             <div className="space-y-4">
               <div className="bg-blue-50 rounded-xl p-4 text-sm text-blue-700 space-y-1">
-                <p className="font-semibold">Required columns: name, price (₹), category_name, stock</p>
-                <p>Optional: description, image_url, image_url_2, image_url_3, wholesale_enabled, wholesale_price, wholesale_min_qty</p>
-                <p className="text-xs text-blue-500 mt-1">Images: Use full URL (https://...) or just the filename (e.g., headphones.jpg) from your uploaded images below.</p>
+                <p className="font-semibold">Required: name, price (Retail ₹), category_name, stock</p>
+                <p>Optional: description, mrp, subcategory_name, unit, unit_value, weight_kg, delivery_type (vendor_default/per_product/per_kg), delivery_charge, brand_name</p>
+                <p>Images: image_url, image_url_2, image_url_3, image_url_4, image_url_5</p>
+                <p>Wholesale: wholesale_enabled (true/false), wholesale_price, wholesale_min_qty</p>
+                <p className="text-xs text-blue-500 mt-1">Category/Subcategory/Brand auto-created if not found.</p>
+                <p className="text-xs text-blue-500">Images: Recommended 800×800px (square). Use full URL or filename from uploaded images.</p>
               </div>
 
               {/* Bulk Image Upload */}
@@ -567,9 +592,11 @@ export function VendorOrders() {
   const [orders, setOrders] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [selected, setSelected] = useState<any>(null)
+  const [vendorProfile, setVendorProfile] = useState<any>(null)
 
   useEffect(() => {
     api.get('/orders/vendor').then(r => setOrders(r.data.orders || [])).catch(() => {}).finally(() => setLoading(false))
+    api.get('/vendor/profile').then(r => setVendorProfile(r.data.vendor || null)).catch(() => {})
   }, [])
 
   const updateStatus = async (orderId: number, status: string) => {
@@ -581,10 +608,230 @@ export function VendorOrders() {
     } catch { toast.error('Failed to update') }
   }
 
+  const printDeliverySticker = (order: any) => {
+      const addr = typeof order.shipping_address === 'string' ? JSON.parse(order.shipping_address) : order.shipping_address
+      const items = (order.items || [])
+      const itemsList = items.map((item: any) => `${item.product_name || item.name} x${item.quantity}`).join(' | ')
+      const totalQty = items.reduce((sum: number, item: any) => sum + (item.quantity || 1), 0)
+      const paymentLabel = order.payment_method === 'cod' ? 'CASH ON DELIVERY' : 'PREPAID'
+      const paymentIcon = order.payment_method === 'cod' ? '💰' : '✅'
+      const seller = vendorProfile || {}
+
+      const stickerHtml = `
+        <!DOCTYPE html>
+        <html><head><title>Delivery Sticker - Order #${order.id}</title>
+        <style>
+          * { margin: 0; padding: 0; box-sizing: border-box; }
+          @page { size: 6in 4in; margin: 0; }
+          body { font-family: 'Arial', sans-serif; width: 6in; height: 4in; padding: 0; }
+          .sticker { border: 3px solid #000; border-radius: 10px; height: 100%; display: grid; grid-template-columns: 1.5fr 1fr; grid-template-rows: auto 1fr auto; }
+          /* Header */
+          .header { grid-column: 1 / -1; display: flex; align-items: center; justify-content: space-between; padding: 10px 16px; border-bottom: 3px solid #000; }
+          .logo { display: flex; align-items: center; gap: 6px; }
+          .logo img { height: 24px; width: 24px; }
+          .logo-text { font-size: 18px; font-weight: 900; }
+          .logo-text .go { color: #1e3a5f; }
+          .logo-text .marts { color: #f97316; }
+          .order-info { text-align: right; }
+          .order-id { font-size: 20px; font-weight: 900; }
+          .order-date { font-size: 10px; color: #666; margin-top: 1px; }
+          /* Left - Delivery */
+          .deliver-section { padding: 12px 16px; display: flex; flex-direction: column; }
+          .deliver-label { font-size: 9px; font-weight: 800; color: #f97316; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 4px; }
+          .customer-name { font-size: 18px; font-weight: 900; color: #000; margin-bottom: 4px; }
+          .customer-address { font-size: 11px; color: #333; line-height: 1.5; }
+          .customer-phone { font-size: 12px; font-weight: 700; margin-top: 6px; }
+          .pincode-box { margin-top: 10px; border: 3px solid #000; border-radius: 6px; padding: 4px 14px; font-size: 26px; font-weight: 900; letter-spacing: 4px; width: fit-content; font-family: 'Courier New', monospace; }
+          /* Right - Payment & From */
+          .right-section { padding: 12px 16px; border-left: 2px dashed #ccc; display: flex; flex-direction: column; }
+          .payment-badge { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; font-weight: 800; padding: 6px 12px; border-radius: 6px; width: fit-content; }
+          .payment-cod { background: #fef3c7; color: #92400e; border: 2px solid #f59e0b; }
+          .payment-prepaid { background: #d1fae5; color: #065f46; border: 2px solid #10b981; }
+          .from-block { margin-top: auto; padding-top: 10px; border-top: 2px solid #000; }
+          .from-label { font-size: 9px; font-weight: 800; color: #f97316; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 4px; }
+          .from-name { font-size: 13px; font-weight: 800; color: #000; }
+          .from-detail { font-size: 10px; color: #444; line-height: 1.5; margin-top: 2px; }
+          /* Footer */
+          .footer { grid-column: 1 / -1; border-top: 2px dashed #ccc; padding: 6px 16px; font-size: 9px; color: #555; }
+          .footer b { color: #000; }
+        </style></head>
+        <body>
+          <div class="sticker">
+            <div class="header">
+              <div class="logo">
+                <img src="/logo.png" />
+                <span class="logo-text"><span class="go">Go</span><span class="marts">Marts</span></span>
+              </div>
+              <div class="order-info">
+                <div class="order-id">#${order.id}</div>
+                <div class="order-date">${new Date(order.created_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</div>
+              </div>
+            </div>
+            <div class="deliver-section">
+              <div class="deliver-label">📦 Deliver To</div>
+              <div class="customer-name">${addr.name || `${order.first_name || ''} ${order.last_name || ''}`.trim()}</div>
+              <div class="customer-address">
+                ${addr.address || ''}${addr.landmark ? '<br>Near: ' + addr.landmark : ''}<br>
+                ${addr.city || ''}, ${addr.state || ''}
+              </div>
+              ${addr.phone ? `<div class="customer-phone">📞 ${addr.phone}</div>` : ''}
+              <div class="pincode-box">${addr.pincode || '000000'}</div>
+            </div>
+            <div class="right-section">
+              <span class="payment-badge ${order.payment_method === 'cod' ? 'payment-cod' : 'payment-prepaid'}">${paymentIcon} ${paymentLabel}</span>
+              <div class="from-block">
+                <div class="from-label">📮 From (Seller)</div>
+                <div class="from-name">${seller.store_name || 'GoMarts Seller'}</div>
+                <div class="from-detail">
+                  ${seller.business_address || ''}
+                  ${seller.contact_phone ? '<br>📞 ' + seller.contact_phone : ''}
+                  ${seller.gst_number ? '<br>GST: ' + seller.gst_number : ''}
+                </div>
+              </div>
+            </div>
+            <div class="footer">
+              <b>Items (${totalQty}):</b> ${itemsList.substring(0, 140)}${itemsList.length > 140 ? '...' : ''}
+            </div>
+          </div>
+        </body></html>
+      `
+
+      const win = window.open('', '_blank', 'width=620,height=420')
+      if (win) {
+        win.document.write(stickerHtml)
+        win.document.close()
+        setTimeout(() => win.print(), 300)
+      }
+    }
+
+  const [selectedOrders, setSelectedOrders] = useState<Set<number>>(new Set())
+
+  const toggleSelect = (orderId: number) => {
+    setSelectedOrders(prev => {
+      const next = new Set(prev)
+      if (next.has(orderId)) next.delete(orderId)
+      else next.add(orderId)
+      return next
+    })
+  }
+
+  const selectAll = () => {
+    const pending = orders.filter(o => o.status === 'confirmed' || o.status === 'shipped')
+    if (selectedOrders.size === pending.length) setSelectedOrders(new Set())
+    else setSelectedOrders(new Set(pending.map(o => o.id)))
+  }
+
+  const printBulkStickers = async (ordersToPrint: any[]) => {
+    if (ordersToPrint.length === 0) { toast.error('No orders selected'); return }
+    const fullOrders: any[] = []
+    for (const o of ordersToPrint) {
+      try {
+        const r = await api.get(`/orders/${o.id}`)
+        fullOrders.push(r.data.order || r.data)
+      } catch { fullOrders.push(o) }
+    }
+
+    const seller = vendorProfile || {}
+
+    const buildSticker = (order: any) => {
+      const addr = typeof order.shipping_address === 'string' ? JSON.parse(order.shipping_address) : order.shipping_address
+      if (!addr) return ''
+      const items = (order.items || [])
+      const itemsList = items.map((item: any) => `${item.product_name || item.name} x${item.quantity}`).join(' | ')
+      const totalQty = items.reduce((sum: number, item: any) => sum + (item.quantity || 1), 0)
+      const paymentLabel = order.payment_method === 'cod' ? 'COD' : 'PREPAID'
+      const paymentIcon = order.payment_method === 'cod' ? '💰' : '✅'
+      const paymentClass = order.payment_method === 'cod' ? 'pay-cod' : 'pay-prepaid'
+
+      return `
+        <div class="sticker">
+          <div class="s-header">
+            <div class="s-logo"><img src="/logo.png" /><span><b style="color:#1e3a5f">Go</b><b style="color:#f97316">Marts</b></span></div>
+            <div class="s-order"><div class="s-oid">#${order.id}</div><div class="s-odate">${new Date(order.created_at).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: '2-digit' })}</div></div>
+          </div>
+          <div class="s-body">
+            <div class="s-left">
+              <div class="s-dlabel">📦 DELIVER TO</div>
+              <div class="s-cname">${addr.name || `${order.first_name || ''} ${order.last_name || ''}`.trim()}</div>
+              <div class="s-caddr">${addr.address || ''}${addr.landmark ? ', Nr. ' + addr.landmark : ''}<br>${addr.city || ''}, ${addr.state || ''}</div>
+              ${addr.phone ? `<div class="s-cphone">📞 ${addr.phone}</div>` : ''}
+              <div class="s-pinbox">${addr.pincode || '000000'}</div>
+            </div>
+            <div class="s-right">
+              <span class="s-paybadge ${paymentClass}">${paymentIcon} ${paymentLabel}</span>
+              <div class="s-from">
+                <div class="s-flabel">📮 FROM</div>
+                <div class="s-fname">${seller.store_name || 'Seller'}</div>
+                <div class="s-faddr">${seller.business_address || ''}${seller.contact_phone ? '<br>📞 ' + seller.contact_phone : ''}${seller.gst_number ? '<br>GST: ' + seller.gst_number : ''}</div>
+              </div>
+            </div>
+          </div>
+          <div class="s-footer"><b>Items (${totalQty}):</b> ${itemsList.substring(0, 100)}${itemsList.length > 100 ? '...' : ''}</div>
+        </div>`
+    }
+
+    const stickersHtml = fullOrders.map(buildSticker).join('')
+
+    const pageHtml = `<!DOCTYPE html><html><head><title>Delivery Stickers - A4</title>
+      <style>
+        *{margin:0;padding:0;box-sizing:border-box}
+        @page{size:A4 landscape;margin:6mm}
+        body{font-family:Arial,sans-serif}
+        .grid{display:grid;grid-template-columns:1fr 1fr;gap:5mm}
+        .sticker{border:2px solid #000;border-radius:6px;height:92mm;display:grid;grid-template-rows:auto 1fr auto;page-break-inside:avoid;overflow:hidden}
+        .s-header{display:flex;align-items:center;justify-content:space-between;padding:5px 10px;border-bottom:2px solid #000}
+        .s-logo{display:flex;align-items:center;gap:4px;font-size:11px}
+        .s-logo img{height:14px;width:14px}
+        .s-order{text-align:right}
+        .s-oid{font-size:13px;font-weight:900}
+        .s-odate{font-size:8px;color:#666}
+        .s-body{display:grid;grid-template-columns:1.4fr 1fr;padding:0}
+        .s-left{padding:8px 10px;display:flex;flex-direction:column}
+        .s-right{padding:8px 10px;border-left:1.5px dashed #ccc;display:flex;flex-direction:column}
+        .s-dlabel{font-size:7px;font-weight:800;color:#f97316;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:2px}
+        .s-cname{font-size:12px;font-weight:900;margin-bottom:2px}
+        .s-caddr{font-size:9px;color:#333;line-height:1.3}
+        .s-cphone{font-size:9px;font-weight:700;margin-top:2px}
+        .s-pinbox{margin-top:auto;border:2px solid #000;border-radius:4px;padding:2px 8px;font-size:16px;font-weight:900;letter-spacing:3px;width:fit-content;font-family:'Courier New',monospace}
+        .s-paybadge{display:inline-block;font-size:8px;font-weight:800;padding:3px 6px;border-radius:4px}
+        .pay-cod{background:#fef3c7;color:#92400e;border:1px solid #f59e0b}
+        .pay-prepaid{background:#d1fae5;color:#065f46;border:1px solid #10b981}
+        .s-from{margin-top:auto;padding-top:5px;border-top:1.5px solid #000}
+        .s-flabel{font-size:7px;font-weight:800;color:#f97316;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:1px}
+        .s-fname{font-size:9px;font-weight:800}
+        .s-faddr{font-size:8px;color:#444;line-height:1.3}
+        .s-footer{grid-column:1/-1;border-top:1.5px dashed #ccc;padding:4px 10px;font-size:8px;color:#555}
+      </style></head><body><div class="grid">${stickersHtml}</div></body></html>`
+
+    const win = window.open('', '_blank')
+    if (win) {
+      win.document.write(pageHtml)
+      win.document.close()
+      setTimeout(() => win.print(), 400)
+    }
+  }
+
   return (
     <VendorLayout>
       <div className="p-4 sm:p-6 lg:p-8">
-        <h1 className="text-xl sm:text-2xl font-bold text-gray-900 mb-6">Orders</h1>
+        <div className="flex items-center justify-between mb-6 flex-wrap gap-3">
+          <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Orders</h1>
+          <div className="flex items-center gap-2 flex-wrap">
+            {orders.filter(o => o.status === 'confirmed' || o.status === 'shipped').length > 0 && (
+              <>
+                <button onClick={selectAll} className="btn-secondary text-xs flex items-center gap-1">
+                  <input type="checkbox" checked={selectedOrders.size > 0 && selectedOrders.size === orders.filter(o => o.status === 'confirmed' || o.status === 'shipped').length} readOnly className="accent-primary-500" />
+                  {selectedOrders.size > 0 ? `${selectedOrders.size} Selected` : 'Select All'}
+                </button>
+                {selectedOrders.size > 0 && (
+                  <button onClick={() => printBulkStickers(orders.filter(o => selectedOrders.has(o.id)))} className="btn-primary text-xs flex items-center gap-1">
+                    🏷️ Print Selected ({selectedOrders.size})
+                  </button>
+                )}
+              </>
+            )}
+          </div>
+        </div>
         {loading ? (
           <div className="space-y-3">{Array(4).fill(0).map((_,i) => <Skeleton key={i} className="h-20 rounded-xl" />)}</div>
         ) : orders.length === 0 ? (
@@ -618,9 +865,14 @@ export function VendorOrders() {
             </div>
             {/* Desktop table view */}
             <div className="hidden sm:block card overflow-hidden">
-              <Table headers={['Order #', 'Customer', 'Date', 'Total', 'Status', 'Actions']}>
+              <Table headers={['', 'Order #', 'Customer', 'Date', 'Total', 'Status', 'Actions']}>
                 {orders.map(o => (
                   <tr key={o.id}>
+                    <td className="table-cell px-2 w-8">
+                      {(o.status === 'confirmed' || o.status === 'shipped') && (
+                        <input type="checkbox" checked={selectedOrders.has(o.id)} onChange={() => toggleSelect(o.id)} className="accent-primary-500 w-4 h-4 cursor-pointer" />
+                      )}
+                    </td>
                     <td className="table-cell px-4"><span className="font-mono font-bold text-gray-800">#{o.id}</span></td>
                     <td className="table-cell px-4"><div><p className="text-sm font-medium">{o.first_name} {o.last_name}</p><p className="text-xs text-gray-400">{o.customer_email}</p></div></td>
                     <td className="table-cell px-4 text-xs text-gray-500">{formatDateTime(o.created_at)}</td>
@@ -754,13 +1006,14 @@ export function VendorOrders() {
               </div>
 
               {/* Actions */}
-              <div className="flex gap-3 pt-2 border-t border-gray-100">
+              <div className="flex gap-3 pt-2 border-t border-gray-100 flex-wrap">
                 {selected.status === 'confirmed' && (
                   <button onClick={() => { updateStatus(selected.id, 'shipped'); setSelected((prev: any) => prev ? { ...prev, status: 'shipped' } : null) }} className="btn-primary text-sm">Mark Shipped</button>
                 )}
                 {selected.status === 'shipped' && (
                   <button onClick={() => { updateStatus(selected.id, 'delivered'); setSelected((prev: any) => prev ? { ...prev, status: 'delivered' } : null) }} className="btn-primary text-sm">Mark Delivered</button>
                 )}
+                <button onClick={() => printDeliverySticker(selected)} className="btn-secondary text-sm inline-flex items-center gap-1">🏷️ Print Sticker</button>
                 <a href={`/invoice/${selected.id}`} target="_blank" rel="noopener noreferrer" className="btn-secondary text-sm inline-flex items-center gap-1">Print Invoice</a>
                 <button onClick={() => setSelected(null)} className="btn-secondary text-sm">Close</button>
               </div>

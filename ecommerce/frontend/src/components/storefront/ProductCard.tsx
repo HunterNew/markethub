@@ -29,6 +29,8 @@ interface Product {
   max_variant_price?: number
   brand_name?: string
   delivery_days?: number
+  unit?: string
+  unit_value?: number
 }
 
 export default function ProductCard({ product }: { product: Product }) {
@@ -121,7 +123,7 @@ export default function ProductCard({ product }: { product: Product }) {
         {/* Name */}
         <Link to={`/products/${product.id}`}>
           <h3 className="font-semibold text-gray-900 line-clamp-2 leading-snug hover:text-primary-600 transition-colors" style={{ fontSize: '0.850rem' }}>
-            {product.name}
+            {product.name}{product.unit && product.unit_value ? <span className="text-gray-400 font-normal"> — {Math.round(Number(product.unit_value))}{product.unit}</span> : ''}
           </h3>
         </Link>
 

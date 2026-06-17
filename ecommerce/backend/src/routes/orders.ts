@@ -174,12 +174,25 @@ router.post('/', authenticate, requireRole('customer'), async (req: AuthRequest,
       const productDeliveryCharge = pd.delivery_type && pd.delivery_type !== 'vendor_default' ? Number(pd.delivery_charge) || 0 : null;
 
       if (productDeliveryType === 'per_kg') {
+        // Weight-based: total weight × charge per kg
         const weight = Number(pd.weight_kg) || 0.5;
+        const totalWeight = weight * item.quantity;
         const chargePerKg = productDeliveryCharge !== null ? productDeliveryCharge : vd.perKg;
-        deliveryCharge += weight * item.quantity * chargePerKg;
+        deliveryCharge += totalWeight * chargePerKg;
       } else {
+        // Per product: flat charge per product (not multiplied by qty)
+        // But if total weight > 1kg, switch to weight-based calculation
+        const weight = Number(pd.weight_kg) || 0.3;
+        const totalWeight = weight * item.quantity;
         const chargePerProduct = productDeliveryCharge !== null ? productDeliveryCharge : vd.perProduct;
-        deliveryCharge += item.quantity * chargePerProduct;
+
+        if (totalWeight > 1 && vd.perKg > 0) {
+          // Exceeded 1kg — use per-kg rate instead
+          deliveryCharge += totalWeight * vd.perKg;
+        } else {
+          // Flat delivery charge (same for any qty under 1kg)
+          deliveryCharge += chargePerProduct;
+        }
       }
     }
 

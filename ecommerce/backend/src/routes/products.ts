@@ -409,11 +409,11 @@ router.post('/', authenticate, requireRole('vendor'), async (req: AuthRequest, r
     }
 
     const [result] = await conn.query(
-      `INSERT INTO products (vendor_id, category_id, name, description, price, mrp, stock_quantity, status, wholesale_enabled, wholesale_price, wholesale_min_qty, weight_kg, delivery_type, delivery_charge, brand_id)
-       VALUES (?, ?, ?, ?, ?, ?, ?, 'pending_approval', ?, ?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO products (vendor_id, category_id, name, description, price, mrp, stock_quantity, status, wholesale_enabled, wholesale_price, wholesale_min_qty, weight_kg, unit, unit_value, delivery_type, delivery_charge, brand_id)
+       VALUES (?, ?, ?, ?, ?, ?, ?, 'pending_approval', ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [vendors[0].id, categoryId, name, description || '', price, req.body.mrp || null, stockQuantity,
        wholesaleEnabled ? 1 : 0, wholesaleEnabled ? wholesalePrice : null, wholesaleEnabled ? wholesaleMinQty : null,
-       req.body.weightKg || null, req.body.deliveryType || 'vendor_default', req.body.deliveryCharge || null,
+       req.body.weightKg || null, req.body.unit || null, req.body.unitValue || null, req.body.deliveryType || 'vendor_default', req.body.deliveryCharge || null,
        req.body.brandId || null]
     ) as any[];
 
@@ -459,12 +459,12 @@ router.put('/:id', authenticate, requireRole('vendor'), async (req: AuthRequest,
 
     await conn.query(
       `UPDATE products SET name=?, description=?, price=?, mrp=?, category_id=?, stock_quantity=?,
-       wholesale_enabled=?, wholesale_price=?, wholesale_min_qty=?, weight_kg=?, delivery_type=?, delivery_charge=?, brand_id=?, updated_at=NOW(),
+       wholesale_enabled=?, wholesale_price=?, wholesale_min_qty=?, weight_kg=?, unit=?, unit_value=?, delivery_type=?, delivery_charge=?, brand_id=?, updated_at=NOW(),
        status = CASE WHEN status = 'out_of_stock' AND stock_quantity > 0 THEN 'active' ELSE status END
        WHERE id = ?`,
       [name, description, price, req.body.mrp || null, categoryId, Number(stockQuantity),
        wholesaleEnabled ? 1 : 0, wholesaleEnabled ? wholesalePrice : null, wholesaleEnabled ? wholesaleMinQty : null,
-       weightKg || null, deliveryType || 'vendor_default', deliveryCharge || null, brandId || null, req.params.id]
+       weightKg || null, req.body.unit || null, req.body.unitValue || null, deliveryType || 'vendor_default', deliveryCharge || null, brandId || null, req.params.id]
     );
 
     // Update images if provided

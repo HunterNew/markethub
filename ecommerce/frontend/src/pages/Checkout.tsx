@@ -67,10 +67,20 @@ export default function CheckoutPage() {
         const pCharge = item.product_delivery_type && item.product_delivery_type !== 'vendor_default' ? Number(item.product_delivery_charge) || 0 : null
         if (pType === 'per_kg') {
           const chargePerKg = pCharge !== null ? pCharge : (Number(firstItem.delivery_charge_per_kg) || 0)
-          deliveryTotal += (Number(item.weight_kg) || 0.5) * item.quantity * chargePerKg
+          const totalWeight = (Number(item.weight_kg) || 0.5) * item.quantity
+          deliveryTotal += totalWeight * chargePerKg
         } else {
           const chargePerProduct = pCharge !== null ? pCharge : (Number(firstItem.delivery_charge_per_product) || 0)
-          deliveryTotal += item.quantity * chargePerProduct
+          const weight = Number(item.weight_kg) || 0.3
+          const totalWeight = weight * item.quantity
+          const perKgRate = Number(firstItem.delivery_charge_per_kg) || 0
+          if (totalWeight > 1 && perKgRate > 0) {
+            // Weight exceeded 1kg — use per-kg rate
+            deliveryTotal += totalWeight * perKgRate
+          } else {
+            // Flat charge (same regardless of qty)
+            deliveryTotal += chargePerProduct
+          }
         }
       })
     })
@@ -347,7 +357,7 @@ export default function CheckoutPage() {
                             {item.primary_image && <img src={item.primary_image} alt="" className="w-full h-full object-cover" />}
                           </div>
                           <div className="flex-1 min-w-0">
-                            <p className="text-sm font-semibold text-gray-900 line-clamp-1">{item.name}</p>
+                            <p className="text-sm font-semibold text-gray-900 line-clamp-1">{item.name}{item.unit && item.unit_value ? <span className="text-gray-400 font-normal text-xs ml-1">({Math.round(Number(item.unit_value))}{item.unit})</span> : ''}</p>
                             {item.option_combination && Object.keys(item.option_combination).length > 0 && (
                               <div className="flex flex-wrap gap-1 mt-1">
                                 {Object.entries(item.option_combination).map(([k, v]) => (
@@ -438,7 +448,7 @@ export default function CheckoutPage() {
                   <div className="w-6 h-6 rounded overflow-hidden bg-gray-100 flex-shrink-0">
                     {item.primary_image && <img src={item.primary_image} alt="" className="w-full h-full object-cover" />}
                   </div>
-                  <span className="line-clamp-1">{item.name}</span>
+                  <span className="line-clamp-1">{item.name}{item.unit && item.unit_value ? <span className="text-gray-400 text-[10px] ml-1">({Math.round(Number(item.unit_value))}{item.unit})</span> : ''}</span>
                   <span className="ml-auto flex-shrink-0">×{item.quantity}</span>
                 </div>
               ))}

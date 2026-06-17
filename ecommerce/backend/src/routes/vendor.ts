@@ -557,14 +557,56 @@ router.post('/products/import', authenticate, requireRole('vendor'), async (req:
       const name = data['name'];
       const price = parseFloat(data['price']);
       const categoryName = data['category_name'];
+      const subcategoryName = data['subcategory_name'];
       const stock = parseInt(data['stock']);
 
       if (!name) { results.push({ row: rowNum, name: name || 'Unknown', status: 'error', message: 'Name is required' }); errors++; continue; }
       if (isNaN(price) || price <= 0) { results.push({ row: rowNum, name, status: 'error', message: 'Price must be > 0' }); errors++; continue; }
       if (!categoryName) { results.push({ row: rowNum, name, status: 'error', message: 'Category name is required' }); errors++; continue; }
 
-      const categoryId = categoryMap[categoryName.toLowerCase()];
-      if (!categoryId) { results.push({ row: rowNum, name, status: 'error', message: `Category "${categoryName}" not found` }); errors++; continue; }
+      // Category resolution: check subcategory first, then parent
+      let categoryId: number | null = null;
+
+      if (subcategoryName) {
+        // Look for subcategory under the parent
+        const parentId = categoryMap[categoryName.toLowerCase()];
+        if (parentId) {
+          // Find subcategory under this parent
+          const [subRows] = await conn.query('SELECT id FROM categories WHERE LOWER(name) = ? AND parent_id = ? AND status = "active"', [subcategoryName.toLowerCase(), parentId]) as any[];
+          if ((subRows as any[]).length > 0) {
+            categoryId = (subRows as any[])[0].id;
+          } else {
+            // Auto-create subcategory
+            const subSlug = subcategoryName.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
+            const [newSub] = await conn.query('INSERT INTO categories (name, slug, parent_id, status, created_by_vendor_id) VALUES (?, ?, ?, "active", ?)', [subcategoryName, subSlug, parentId, vendor.id]) as any[];
+            categoryId = newSub.insertId;
+            categoryMap[subcategoryName.toLowerCase()] = categoryId!;
+          }
+        } else {
+          // Parent not found — auto-create parent + subcategory
+          const parentSlug = categoryName.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
+          const [newParent] = await conn.query('INSERT INTO categories (name, slug, status) VALUES (?, ?, "active")', [categoryName, parentSlug]) as any[];
+          const newParentId = newParent.insertId;
+          categoryMap[categoryName.toLowerCase()] = newParentId;
+
+          const subSlug = subcategoryName.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
+          const [newSub] = await conn.query('INSERT INTO categories (name, slug, parent_id, status, created_by_vendor_id) VALUES (?, ?, ?, "active", ?)', [subcategoryName, subSlug, newParentId, vendor.id]) as any[];
+          categoryId = newSub.insertId;
+          categoryMap[subcategoryName.toLowerCase()] = categoryId!;
+        }
+      } else {
+        // No subcategory — use parent category directly
+        categoryId = categoryMap[categoryName.toLowerCase()] || null;
+        if (!categoryId) {
+          // Auto-create category
+          const slug = categoryName.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
+          const [newCat] = await conn.query('INSERT INTO categories (name, slug, status) VALUES (?, ?, "active")', [categoryName, slug]) as any[];
+          categoryId = newCat.insertId;
+          categoryMap[categoryName.toLowerCase()] = categoryId!;
+        }
+      }
+
+      if (!categoryId) { results.push({ row: rowNum, name, status: 'error', message: 'Failed to resolve category' }); errors++; continue; }
 
       const wholesaleEnabled = ['true', '1', 'yes'].includes((data['wholesale_enabled'] || '').toLowerCase());
       let wholesalePrice = null, wholesaleMinQty = null;
@@ -580,15 +622,36 @@ router.post('/products/import', authenticate, requireRole('vendor'), async (req:
         }
       }
 
+      // Optional fields
+      const mrp = data['mrp'] ? parseFloat(data['mrp']) : null;
+      const weightKg = data['weight_kg'] ? parseFloat(data['weight_kg']) : null;
+      const unit = data['unit'] || null;
+      const deliveryType = data['delivery_type'] || 'vendor_default';
+      const deliveryCharge = data['delivery_charge'] ? parseFloat(data['delivery_charge']) : null;
+
+      // Brand lookup — auto-create if not found
+      let brandId: number | null = null;
+      if (data['brand_name']) {
+        const [brandRows] = await conn.query('SELECT id FROM brands WHERE LOWER(name) = ?', [data['brand_name'].toLowerCase()]) as any[];
+        if ((brandRows as any[]).length > 0) {
+          brandId = (brandRows as any[])[0].id;
+        } else {
+          // Auto-create brand under this category
+          const [newBrand] = await conn.query('INSERT INTO brands (name, subcategory_id, status) VALUES (?, ?, "approved")', [data['brand_name'], categoryId]) as any[];
+          brandId = newBrand.insertId;
+        }
+      }
+
       const [result] = await conn.query(
-        `INSERT INTO products (vendor_id, category_id, name, description, price, stock_quantity, status, wholesale_enabled, wholesale_price, wholesale_min_qty)
-         VALUES (?, ?, ?, ?, ?, ?, 'pending_approval', ?, ?, ?)`,
-        [vendor.id, categoryId, name, data['description'] || '', price, isNaN(stock) ? 0 : stock,
-         wholesaleEnabled ? 1 : 0, wholesaleEnabled ? wholesalePrice : null, wholesaleEnabled ? wholesaleMinQty : null]
+        `INSERT INTO products (vendor_id, category_id, name, description, price, mrp, stock_quantity, status, wholesale_enabled, wholesale_price, wholesale_min_qty, weight_kg, unit, delivery_type, delivery_charge, brand_id)
+         VALUES (?, ?, ?, ?, ?, ?, ?, 'pending_approval', ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [vendor.id, categoryId, name, data['description'] || '', price, mrp, isNaN(stock) ? 0 : stock,
+         wholesaleEnabled ? 1 : 0, wholesaleEnabled ? wholesalePrice : null, wholesaleEnabled ? wholesaleMinQty : null,
+         weightKg, unit, deliveryType, deliveryCharge, brandId]
       ) as any[];
 
       const productId = result.insertId;
-      const imageUrls = [data['image_url'], data['image_url_2'], data['image_url_3']]
+      const imageUrls = [data['image_url'], data['image_url_2'], data['image_url_3'], data['image_url_4'], data['image_url_5']]
         .map(v => resolveImageUrl(v))
         .filter(Boolean) as string[];
       for (let j = 0; j < imageUrls.length; j++) {
@@ -612,12 +675,11 @@ router.post('/products/import', authenticate, requireRole('vendor'), async (req:
 });
 
 router.get('/products/import/template', authenticate, requireRole('vendor'), (req, res) => {
-  const csv = `name,description,price,category_name,stock,image_url,image_url_2,image_url_3,wholesale_enabled,wholesale_price,wholesale_min_qty
-"Wireless Bluetooth Headphones","Premium over-ear headphones with ANC",2999,Electronics,50,headphones.jpg,,,false,,
-"USB-C Fast Charger 65W","GaN technology fast charger",1499,Electronics,120,charger.jpg,,,false,,
-"Classic Cotton T-Shirt","100% organic cotton unisex t-shirt",799,Clothing,200,tshirt.jpg,,,false,,
-"Slim Fit Chino Pants","Comfortable slim-fit chinos",1999,Clothing,80,chinos.jpg,,,false,,
-"Bulk Office Paper A4","500 sheets per ream premium paper",499,Books,500,paper.jpg,,,true,399,10`;
+  const csv = `name,description,price,mrp,category_name,subcategory_name,stock,unit,weight_kg,delivery_type,delivery_charge,brand_name,image_url,image_url_2,image_url_3,image_url_4,image_url_5,wholesale_enabled,wholesale_price,wholesale_min_qty
+"Wireless Bluetooth Headphones","Premium over-ear headphones with ANC",2999,3500,"Electronics","Audio",50,"pcs",0.3,"vendor_default",,"Sony","headphones.jpg","","","","",false,,
+"Coconut Oil 500ml","Pure cold-pressed coconut oil",299,399,"Food & Grocery","Oil",100,"ml",0.5,"per_product",30,"","oil.jpg","","","","",false,,
+"Basmati Rice 5kg","Premium aged basmati rice",599,750,"Food & Grocery","Rice",200,"kg",5,"per_kg",20,"","rice.jpg","","","","",true,499,10
+"Classic Cotton T-Shirt","100% organic cotton unisex t-shirt",799,999,"Clothing","Men",200,"pcs",0.25,"vendor_default",,"","tshirt.jpg","","","","",false,,`;
 
   res.setHeader('Content-Type', 'text/csv');
   res.setHeader('Content-Disposition', 'attachment; filename="product_import_template.csv"');
