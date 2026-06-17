@@ -15,7 +15,7 @@ interface SidebarItem {
   badge?: number
 }
 
-function SidebarLayout({ title, items, children, showHelp = true }: { title: string; items: SidebarItem[]; children: ReactNode; showHelp?: boolean }) {
+function SidebarLayout({ title, items, children, showHelp = true, helpRole = 'admin' }: { title: string; items: SidebarItem[]; children: ReactNode; showHelp?: boolean; helpRole?: string }) {
   const { logout } = useAuth()
   const [mobileNavOpen, setMobileNavOpen] = useState(false)
 
@@ -83,7 +83,7 @@ function SidebarLayout({ title, items, children, showHelp = true }: { title: str
           </nav>
           <div className="p-4 border-t border-gray-100">
             {showHelp && (
-              <a href="/help-guide.html" target="_blank" rel="noopener noreferrer"
+              <a href={`/help-guide.html?role=${helpRole}`} target="_blank" rel="noopener noreferrer"
                 className="sidebar-link w-full text-gray-600 hover:bg-gray-50 mb-1">
                 <span className="flex-shrink-0">❓</span>
                 <span className="flex-1">Help Guide</span>
@@ -130,7 +130,7 @@ export function VendorLayout({ children }: { children: ReactNode }) {
     { label: 'Withdrawals', to: '/vendor/withdrawals', icon: <Wallet size={18} /> },
     { label: 'Profile', to: '/vendor/profile', icon: <User size={18} /> },
   ]
-  return <SidebarLayout title="Vendor Panel" items={items}>{children}</SidebarLayout>
+  return <SidebarLayout title="Vendor Panel" items={items} helpRole="vendor">{children}</SidebarLayout>
 }
 
 export function AdminLayout({ children }: { children: ReactNode }) {
@@ -139,6 +139,7 @@ export function AdminLayout({ children }: { children: ReactNode }) {
     { label: 'Vendors', to: '/admin/vendors', icon: <Users size={18} /> },
     { label: 'Products', to: '/admin/products', icon: <Package size={18} /> },
     { label: 'Categories', to: '/admin/categories', icon: <ClipboardList size={18} /> },
+    { label: 'Brands', to: '/admin/brands', icon: <Tag size={18} /> },
     { label: 'Orders', to: '/admin/orders', icon: <ShoppingBag size={18} /> },
     { label: 'Coupons', to: '/admin/coupons', icon: <Tag size={18} /> },
     { label: 'Banners', to: '/admin/banners', icon: <Image size={18} /> },

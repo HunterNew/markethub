@@ -26,6 +26,15 @@
     overflow-x: hidden;
   }
 
+  body.theme-darkglass {
+    background: #050b18;
+    color: #e8eaf0;
+    background-image:
+      radial-gradient(ellipse at 20% 50%, rgba(15, 50, 100, 0.4) 0%, transparent 50%),
+      radial-gradient(ellipse at 80% 20%, rgba(249, 115, 22, 0.05) 0%, transparent 40%),
+      radial-gradient(ellipse at 50% 100%, rgba(10, 30, 60, 0.5) 0%, transparent 50%);
+  }
+
   ::-webkit-scrollbar { width: 6px; height: 6px; }
   ::-webkit-scrollbar-track { background: #f1f1f1; }
   ::-webkit-scrollbar-thumb { background: #d1d5db; border-radius: 3px; }
@@ -33,6 +42,80 @@
 }
 
 @layer components {
+  /* TekMarts theme container - wider padding for that spacious look */
+  .tk-container {
+    @apply max-w-7xl mx-auto px-5 sm:px-8 lg:px-12;
+  }
+
+  /* Dark Glass theme */
+  .dg-container {
+    @apply max-w-7xl mx-auto px-4 sm:px-6 lg:px-8;
+  }
+  .dg-header {
+    background: linear-gradient(180deg, #0d1b2e 0%, #0a1628 100%);
+    border-bottom: 1px solid #1e90ff;
+    box-shadow: 0 1px 6px rgba(30, 144, 255, 0.1);
+  }
+  .dg-nav {
+    height: 0;
+    border-top: 1px solid #1e90ff;
+  }
+  .dg-nav-link {
+    @apply px-4 py-2.5 text-xs font-medium text-white/50 hover:text-white hover:bg-white/[0.03] transition-all border-b-2 border-transparent;
+  }
+  .dg-nav-link.active {
+    @apply text-primary-500 border-primary-500;
+  }
+  .dg-glass {
+    background: rgba(255,255,255,0.05);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid rgba(255,255,255,0.08);
+  }
+  .dg-glass-card {
+    background: linear-gradient(135deg, rgba(255,255,255,0.04) 0%, rgba(255,255,255,0.01) 100%);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border: 1px solid rgba(255,255,255,0.07);
+    border-radius: 14px;
+    transition: all 0.3s ease;
+  }
+  .dg-glass-card:hover {
+    background: linear-gradient(135deg, rgba(255,255,255,0.07) 0%, rgba(255,255,255,0.03) 100%);
+    border-color: rgba(249,115,22,0.25);
+    box-shadow: 0 8px 32px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.05);
+    transform: translateY(-3px);
+  }
+  .dg-icon-btn {
+    @apply w-9 h-9 rounded-lg flex items-center justify-center text-gray-400 cursor-pointer transition-all;
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(255,255,255,0.08);
+  }
+  .dg-icon-btn:hover {
+    border-color: rgba(249,115,22,0.4);
+    color: #f97316;
+    background: rgba(249,115,22,0.05);
+    box-shadow: 0 0 12px rgba(249,115,22,0.1);
+  }
+  .dg-badge {
+    @apply absolute -top-1 -right-1 w-4 h-4 rounded-full flex items-center justify-center text-[9px] font-bold text-white;
+    background: #f97316;
+    box-shadow: 0 0 8px rgba(249,115,22,0.4);
+  }
+  .dg-btn-login {
+    @apply px-4 py-1.5 rounded-md text-xs font-semibold cursor-pointer transition-all;
+    border: 1px solid rgba(249,115,22,0.5);
+    background: rgba(249,115,22,0.1);
+    color: #f97316;
+    backdrop-filter: blur(4px);
+  }
+  .dg-btn-login:hover {
+    background: #f97316;
+    color: #fff;
+    box-shadow: 0 0 20px rgba(249,115,22,0.3);
+    border-color: #f97316;
+  }
+
   .btn-primary {
     @apply bg-primary-500 hover:bg-primary-600 active:bg-primary-700 text-white font-semibold px-6 py-2.5 rounded-xl transition-all duration-200 inline-flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed shadow-sm hover:shadow-md;
   }
@@ -136,6 +219,73 @@
     scrollbar-width: none;
   }
   .scrollbar-hide::-webkit-scrollbar { display: none; }
+}
+
+/* Dark Glass theme — page overrides */
+body.theme-darkglass .min-h-screen.bg-gray-50,
+body.theme-darkglass .min-h-screen {
+  background: transparent !important;
+}
+body.theme-darkglass .bg-white,
+body.theme-darkglass .card {
+  background: linear-gradient(135deg, rgba(255,255,255,0.04) 0%, rgba(255,255,255,0.01) 100%) !important;
+  border-color: rgba(255,255,255,0.07) !important;
+  color: #e8eaf0;
+}
+body.theme-darkglass .bg-gray-50 {
+  background: rgba(255,255,255,0.02) !important;
+}
+body.theme-darkglass .bg-orange-50 {
+  background: rgba(249,115,22,0.06) !important;
+  border-color: rgba(249,115,22,0.15) !important;
+}
+body.theme-darkglass .text-gray-900,
+body.theme-darkglass .text-gray-800,
+body.theme-darkglass .text-gray-700 {
+  color: #e8eaf0 !important;
+}
+body.theme-darkglass .text-gray-600,
+body.theme-darkglass .text-gray-500 {
+  color: #94a3b8 !important;
+}
+body.theme-darkglass .text-gray-400 {
+  color: #64748b !important;
+}
+body.theme-darkglass .border-gray-100,
+body.theme-darkglass .border-gray-200 {
+  border-color: rgba(255,255,255,0.06) !important;
+}
+body.theme-darkglass .border-gray-50 {
+  border-color: rgba(255,255,255,0.04) !important;
+}
+body.theme-darkglass .hover\:bg-gray-50:hover {
+  background: rgba(255,255,255,0.04) !important;
+}
+body.theme-darkglass .bg-gray-100 {
+  background: rgba(255,255,255,0.05) !important;
+}
+body.theme-darkglass .input {
+  background: rgba(255,255,255,0.04) !important;
+  border-color: rgba(255,255,255,0.1) !important;
+  color: #e8eaf0 !important;
+}
+body.theme-darkglass .input::placeholder {
+  color: #64748b !important;
+}
+body.theme-darkglass .shadow-card,
+body.theme-darkglass .shadow-sm {
+  box-shadow: 0 4px 20px rgba(0,0,0,0.3) !important;
+}
+body.theme-darkglass .page-container {
+  color: #e8eaf0;
+}
+/* Product detail specific */
+body.theme-darkglass .rounded-2xl.overflow-hidden.bg-white {
+  background: linear-gradient(135deg, rgba(255,255,255,0.03) 0%, rgba(255,255,255,0.01) 100%) !important;
+}
+body.theme-darkglass .sticky.top-16.bg-white {
+  background: linear-gradient(135deg, rgba(255,255,255,0.04) 0%, rgba(255,255,255,0.01) 100%) !important;
+  border-color: rgba(255,255,255,0.07) !important;
 }
 
 /* Print styles for invoice */

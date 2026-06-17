@@ -49,7 +49,33 @@ export default function CheckoutPage() {
     }).catch(() => { setShowNewForm(true) })
   }, [])
 
-  const shipping = total >= 999 ? 0 : 99
+  const shipping = (() => {
+    let deliveryTotal = 0
+    const vendorGroups: Record<string, { items: any[], subtotal: number }> = {}
+    items.forEach(item => {
+      const key = item.store_name || 'default'
+      if (!vendorGroups[key]) vendorGroups[key] = { items: [], subtotal: 0 }
+      vendorGroups[key].items.push(item)
+      vendorGroups[key].subtotal += item.unit_price * item.quantity
+    })
+    Object.values(vendorGroups).forEach(group => {
+      const firstItem = group.items[0] as any
+      const freeAbove = Number(firstItem.free_delivery_above) || 0
+      if (freeAbove > 0 && group.subtotal >= freeAbove) return
+      group.items.forEach((item: any) => {
+        const pType = item.product_delivery_type && item.product_delivery_type !== 'vendor_default' ? item.product_delivery_type : (firstItem.vendor_delivery_type || 'per_product')
+        const pCharge = item.product_delivery_type && item.product_delivery_type !== 'vendor_default' ? Number(item.product_delivery_charge) || 0 : null
+        if (pType === 'per_kg') {
+          const chargePerKg = pCharge !== null ? pCharge : (Number(firstItem.delivery_charge_per_kg) || 0)
+          deliveryTotal += (Number(item.weight_kg) || 0.5) * item.quantity * chargePerKg
+        } else {
+          const chargePerProduct = pCharge !== null ? pCharge : (Number(firstItem.delivery_charge_per_product) || 0)
+          deliveryTotal += item.quantity * chargePerProduct
+        }
+      })
+    })
+    return Math.round(deliveryTotal * 100) / 100
+  })()
   const finalTotal = total - discount + shipping + taxAmount
 
   const setAddr = (k: string, v: string) => setAddress(prev => ({ ...prev, [k]: v }))

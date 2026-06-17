@@ -19,6 +19,14 @@ interface CartItem {
   wholesale_enabled?: boolean
   variant_id?: number | null
   option_combination?: Record<string, string> | null
+  cod_enabled?: boolean | number
+  weight_kg?: number
+  delivery_type?: string
+  delivery_charge_per_product?: number
+  delivery_charge_per_kg?: number
+  free_delivery_above?: number
+  product_delivery_type?: string
+  product_delivery_charge?: number
 }
 
 interface GuestCartItem {

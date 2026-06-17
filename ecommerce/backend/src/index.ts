@@ -16,6 +16,8 @@ import vendorRoutes from './routes/vendor';
 import uploadRoutes from './routes/upload';
 import reviewRoutes from './routes/reviews';
 import { categoryRouter, searchRouter } from './routes/categories';
+import brandRoutes from './routes/brands';
+import wishlistRoutes from './routes/wishlist';
 
 const app = express();
 
@@ -51,6 +53,8 @@ app.use('/api/v1/vendor', vendorRoutes);
 app.use('/api/v1/upload', uploadRoutes);
 app.use('/api/v1/reviews', reviewRoutes);
 app.use('/api/v1/categories', categoryRouter);
+app.use('/api/v1/brands', brandRoutes);
+app.use('/api/v1/wishlist', wishlistRoutes);
 app.use('/api/v1/search', searchRouter);
 
 // Public banners endpoint
@@ -100,6 +104,21 @@ app.get('/api/v1/vendors/:slug', async (req, res) => {
 // Health check
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
+});
+
+// Public theme endpoint
+app.get('/api/v1/settings/theme', async (req, res) => {
+  const { default: pool } = await import('./db/pool');
+  const conn = await pool.getConnection();
+  try {
+    const [rows] = await conn.query('SELECT value FROM platform_settings WHERE `key` = "site_theme"') as any[];
+    const theme = (rows as any[]).length > 0 ? JSON.parse((rows as any[])[0].value) : 'default';
+    return res.json({ status: 'success', theme });
+  } catch {
+    return res.json({ status: 'success', theme: 'default' });
+  } finally {
+    conn.release();
+  }
 });
 
 // Config endpoint - expose public Razorpay key

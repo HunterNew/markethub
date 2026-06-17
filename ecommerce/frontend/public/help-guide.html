@@ -6,12 +6,16 @@
   <title>GoMarts - Help Guide</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
-    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f9fafb; color: #1f2937; line-height: 1.6; }
+    body { font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f9fafb; color: #1f2937; line-height: 1.6; }
     .container { max-width: 1100px; margin: 0 auto; padding: 20px; }
-    header { background: linear-gradient(135deg, #f97316, #ea580c); color: white; padding: 40px 20px; text-align: center; }
-    header h1 { font-size: 2.5rem; margin-bottom: 8px; }
-    header p { opacity: 0.9; font-size: 1.1rem; }
-    .tabs { display: flex; gap: 0; border-bottom: 2px solid #e5e7eb; margin: 30px 0 0; position: sticky; top: 0; background: #f9fafb; z-index: 10; padding-top: 10px; }
+    header { background: linear-gradient(135deg, #1e3a5f, #0f2440); color: white; padding: 40px 20px; text-align: center; }
+    header .logo { display: flex; align-items: center; justify-content: center; gap: 10px; margin-bottom: 12px; }
+    header .logo img { height: 48px; width: 48px; }
+    header .logo span { font-size: 1.8rem; font-weight: 800; }
+    header .logo .go { color: #ffffff; }
+    header .logo .marts { color: #f97316; }
+    header p { opacity: 0.85; font-size: 1.05rem; }
+    .tabs { display: flex; gap: 0; border-bottom: 2px solid #e5e7eb; margin: 30px 0 0; position: sticky; top: 0; background: #f9fafb; z-index: 10; padding-top: 10px; flex-wrap: wrap; }
     .tab { padding: 12px 24px; cursor: pointer; font-weight: 600; font-size: 14px; border-bottom: 3px solid transparent; color: #6b7280; transition: all 0.2s; }
     .tab:hover { color: #f97316; }
     .tab.active { color: #f97316; border-bottom-color: #f97316; }
@@ -28,7 +32,6 @@
     .badge-green { background: #dcfce7; color: #166534; }
     .badge-blue { background: #dbeafe; color: #1e40af; }
     .badge-orange { background: #ffedd5; color: #9a3412; }
-    .badge-red { background: #fee2e2; color: #991b1b; }
     table { width: 100%; border-collapse: collapse; font-size: 0.85rem; margin: 12px 0; }
     th, td { padding: 10px 12px; text-align: left; border-bottom: 1px solid #f3f4f6; }
     th { background: #f9fafb; font-weight: 600; color: #374151; }
@@ -46,16 +49,19 @@
     .credentials table { margin: 0; }
     @media (max-width: 768px) {
       .tabs { overflow-x: auto; }
-      .tab { padding: 10px 16px; white-space: nowrap; font-size: 13px; }
+      .tab { padding: 10px 14px; white-space: nowrap; font-size: 12px; }
       .feature-grid { grid-template-columns: 1fr; }
-      header h1 { font-size: 1.8rem; }
+      header .logo span { font-size: 1.4rem; }
     }
   </style>
 </head>
 <body>
   <header>
-    <h1>🛒 GoMarts Help Guide</h1>
-    <p>Complete feature reference for Admin, Vendor & Customer</p>
+    <div class="logo">
+      <img src="/logo.png" alt="GoMarts">
+      <span><span class="go">Go</span><span class="marts">Marts</span></span>
+    </div>
+    <p>Complete Help Guide — Admin, Vendor & Customer</p>
   </header>
 
   <div class="container">
@@ -74,7 +80,7 @@
       <div class="tab active" onclick="showPanel('admin')">👑 Admin</div>
       <div class="tab" onclick="showPanel('vendor')">🏪 Vendor</div>
       <div class="tab" onclick="showPanel('customer')">🛍️ Customer</div>
-      <div class="tab" onclick="showPanel('troubleshoot')">🔧 Troubleshooting</div>
+      <div class="tab" onclick="showPanel('storefront')">🌐 Storefront</div>
     </div>
 
     <!-- ADMIN PANEL -->
@@ -83,357 +89,77 @@
         <h2>👑 Admin Panel Features</h2>
         <p>Access: <span class="path">/admin</span> — Full platform control</p>
         <div class="feature-grid">
-          <div class="feature-card">
-            <h4>📊 Dashboard</h4>
-            <p>Overview of sales, orders, revenue, vendors, and commission stats with charts.</p>
-          </div>
-          <div class="feature-card">
-            <h4>👥 Vendor Management</h4>
-            <p>Approve/reject vendors, view details, WhatsApp contact, manage commission rates.</p>
-          </div>
-          <div class="feature-card">
-            <h4>📦 Product Management</h4>
-            <p>Approve/reject vendor products, view all products across the platform.</p>
-          </div>
-          <div class="feature-card">
-            <h4>📂 Categories</h4>
-            <p>Create, edit, delete product categories with images.</p>
-          </div>
-          <div class="feature-card">
-            <h4>🛒 Orders</h4>
-            <p>View all orders, order details, update status, view invoices.</p>
-          </div>
-          <div class="feature-card">
-            <h4>🎟️ Coupons</h4>
-            <p>View all vendor coupons, deactivate/reactivate them.</p>
-          </div>
-          <div class="feature-card">
-            <h4>🖼️ Homepage Banners</h4>
-            <p>Manage hero slider banners with title, subtitle, description, image, and link.</p>
-          </div>
-          <div class="feature-card">
-            <h4>🃏 Promo Cards</h4>
-            <p>Promotional cards section on homepage (e.g., "Latest Electronics", "Fashion Trends").</p>
-          </div>
-          <div class="feature-card">
-            <h4>🔄 Returns & Refunds</h4>
-            <p>Process refund requests approved by vendors. View proof images, amounts.</p>
-          </div>
-          <div class="feature-card">
-            <h4>⭐ Reviews</h4>
-            <p>View all product reviews, delete inappropriate ones.</p>
-          </div>
-          <div class="feature-card">
-            <h4>🔔 Notifications</h4>
-            <p>Send email to all customers, share offers via WhatsApp, view customer phone list.</p>
-          </div>
-          <div class="feature-card">
-            <h4>💰 Withdrawals</h4>
-            <p>Approve/reject vendor withdrawal requests.</p>
-          </div>
-          <div class="feature-card">
-            <h4>📈 Reports</h4>
-            <p>Top products, vendor performance, sales analytics.</p>
-          </div>
-          <div class="feature-card">
-            <h4>⚙️ Settings</h4>
-            <p>Commission rate, wholesale, tax, homepage sections, OTP verification toggles.</p>
-          </div>
+          <div class="feature-card"><h4>📊 Dashboard</h4><p>Sales overview, revenue, orders, commissions, vendor stats with interactive charts (7/14/30 day periods).</p></div>
+          <div class="feature-card"><h4>👥 Vendor Management</h4><p>Approve/reject vendors, enable/disable vendors (hides their products from storefront), WhatsApp contact, set commission rates.</p></div>
+          <div class="feature-card"><h4>📦 Product Management</h4><p>Approve/reject vendor products. Preview product details before approval.</p></div>
+          <div class="feature-card"><h4>📂 Categories</h4><p>Create parent categories and subcategories with images. Approve vendor-requested subcategories.</p></div>
+          <div class="feature-card"><h4>🏷️ Brands</h4><p>Manage brands per subcategory. Approve vendor brand requests.</p></div>
+          <div class="feature-card"><h4>🛒 Orders</h4><p>View all orders across vendors, track status, view invoices.</p></div>
+          <div class="feature-card"><h4>🎟️ Coupons</h4><p>View all vendor coupons, deactivate/reactivate them platform-wide.</p></div>
+          <div class="feature-card"><h4>🖼️ Homepage Banners</h4><p>Manage hero slider banners with title, subtitle, description, image, and link URL.</p></div>
+          <div class="feature-card"><h4>🃏 Promo Cards</h4><p>Promotional cards section on homepage (e.g., "Latest Electronics", "Fashion Trends").</p></div>
+          <div class="feature-card"><h4>🔄 Returns & Refunds</h4><p>Process refund requests approved by vendors. View proof images, refund amounts.</p></div>
+          <div class="feature-card"><h4>⭐ Reviews</h4><p>View all product reviews, delete inappropriate ones.</p></div>
+          <div class="feature-card"><h4>🔔 Notifications</h4><p>Send email to all customers, share offers via WhatsApp, view customer phone list.</p></div>
+          <div class="feature-card"><h4>💰 Withdrawals</h4><p>Approve/reject/complete vendor withdrawal requests.</p></div>
+          <div class="feature-card"><h4>📈 Reports</h4><p>Top products, vendor performance, sales analytics with date grouping.</p></div>
+          <div class="feature-card"><h4>🎨 Theme Selector</h4><p>Switch storefront theme (Default or TekMarts layout) from Settings.</p></div>
+          <div class="feature-card"><h4>⚙️ Settings</h4><p>Commission rate, wholesale, tax rates, homepage sections, OTP verification, storefront theme.</p></div>
         </div>
       </div>
 
       <div class="section">
         <h2>Admin Workflows</h2>
-        <div class="flow">
-          <h4>Vendor Approval Flow</h4>
-          <ol>
-            <li>Vendor registers → status: "pending"</li>
-            <li>Admin sees in Vendors page → clicks Approve/Reject</li>
-            <li>If approved → vendor can add products</li>
-            <li>If rejected → reason shown to vendor</li>
-          </ol>
-        </div>
-        <div class="flow">
-          <h4>Return & Refund Flow</h4>
-          <ol>
-            <li>Customer requests return (with proof image)</li>
-            <li>Vendor approves → status becomes "refund_pending"</li>
-            <li>Admin sees in Returns page → clicks "Process Refund"</li>
-            <li>Order status → "Returned", payment → "Refunded"</li>
-            <li>Customer notified: "Amount credited in 3-5 days"</li>
-          </ol>
-        </div>
-        <div class="flow">
-          <h4>Withdrawal Flow</h4>
-          <ol>
-            <li>Vendor requests withdrawal from earnings</li>
-            <li>Admin sees in Withdrawals → Approve/Reject</li>
-            <li>If approved → vendor balance deducted</li>
-          </ol>
-        </div>
-      </div>
-    </div>
-
-    <!-- VENDOR PANEL -->
-    <div id="panel-vendor" class="panel">
-      <div class="section">
-        <h2>🏪 Vendor Panel Features</h2>
-        <p>Access: <span class="path">/vendor</span> — Manage your store</p>
-        <div class="feature-grid">
-          <div class="feature-card">
-            <h4>📊 Dashboard</h4>
-            <p>Stats (products, orders, balance, pending), quick actions, contact admin via WhatsApp.</p>
-          </div>
-          <div class="feature-card">
-            <h4>📦 Products</h4>
-            <p>Add/edit/delete products, upload images, set variants, wholesale pricing, CSV import.</p>
-          </div>
-          <div class="feature-card">
-            <h4>🛒 Orders</h4>
-            <p>View orders, mark shipped/delivered, print invoice, view return requests.</p>
-          </div>
-          <div class="feature-card">
-            <h4>🏷️ Offers / Sales</h4>
-            <p>Create discount offers (percentage-based), bulk apply to multiple products, set date range.</p>
-          </div>
-          <div class="feature-card">
-            <h4>⭐ Reviews</h4>
-            <p>View all customer reviews for your products with ratings and comments.</p>
-          </div>
-          <div class="feature-card">
-            <h4>🔔 Notifications</h4>
-            <p>Send email to your customers, share via WhatsApp, copy phone numbers for broadcast.</p>
-          </div>
-          <div class="feature-card">
-            <h4>🎟️ Coupons</h4>
-            <p>Create discount codes (percentage/fixed), set min order, usage limit, expiry.</p>
-          </div>
-          <div class="feature-card">
-            <h4>💰 Earnings & Withdrawals</h4>
-            <p>View balance, request withdrawals, see withdrawal history.</p>
-          </div>
-          <div class="feature-card">
-            <h4>👤 Profile</h4>
-            <p>Store logo/banner, business address, GST/FSSAI, bank details, signature, return policy toggle, COD toggle, WhatsApp number.</p>
-          </div>
-        </div>
+        <div class="flow"><h4>Vendor Approval Flow</h4><ol>
+          <li>Vendor registers at /auth/register/vendor → status: "pending"</li>
+          <li>Admin sees in Vendors page → clicks Approve/Reject</li>
+          <li>If approved → vendor can add products</li>
+          <li>Admin can later Disable vendor → all products hidden from storefront</li>
+        </ol></div>
+        <div class="flow"><h4>Return & Refund Flow</h4><ol>
+          <li>Customer requests return (with proof image)</li>
+          <li>Vendor approves → status becomes "refund_pending"</li>
+          <li>Admin sees in Returns page → clicks "Process Refund"</li>
+          <li>Order status → "Returned", payment → "Refunded"</li>
+        </ol></div>
       </div>
 
-      <div class="section">
-        <h2>Vendor Workflows</h2>
-        <div class="flow">
-          <h4>Adding a Product</h4>
-          <ol>
-            <li>Go to Products → Add Product</li>
-            <li>Fill name, description, price, category, stock</li>
-            <li>Upload images (up to 5)</li>
-            <li>Optionally enable wholesale pricing</li>
-            <li>Optionally add variants (size, color, etc.)</li>
-            <li>Submit → status: "pending_approval" → admin approves</li>
-          </ol>
-        </div>
-        <div class="flow">
-          <h4>Creating a Sale Offer</h4>
-          <ol>
-            <li>Go to Offers → Single Offer or Bulk % Off</li>
-            <li>Select product(s), set discount percentage</li>
-            <li>Set start and end date</li>
-            <li>Sale price auto-calculated and shown to customers</li>
-          </ol>
-        </div>
-        <div class="flow">
-          <h4>Order Fulfillment</h4>
-          <ol>
-            <li>New order appears → status: "Confirmed"</li>
-            <li>Print invoice → paste on package</li>
-            <li>Click "Mark Shipped" → customer notified</li>
-            <li>After delivery → Click "Mark Delivered"</li>
-            <li>Commission calculated, earnings updated</li>
-          </ol>
-        </div>
-        <div class="flow">
-          <h4>Invoice Details</h4>
-          <ol>
-            <li>Shows: Sold By (your address, GST, FSSAI)</li>
-            <li>Billing & Shipping address</li>
-            <li>Items table with tax (CGST/SGST)</li>
-            <li>Amount in words, authorized signatory (your logo/signature)</li>
-          </ol>
-        </div>
-      </div>
-    </div>
-
-    <!-- CUSTOMER PANEL -->
-    <div id="panel-customer" class="panel">
-      <div class="section">
-        <h2>🛍️ Customer Features</h2>
-        <p>Access: <span class="path">/customer</span> — Shop and manage orders</p>
-        <div class="feature-grid">
-          <div class="feature-card">
-            <h4>🏠 Homepage</h4>
-            <p>Banner slider, deals of the day, categories, featured products, new arrivals, best sellers, promo cards.</p>
-          </div>
-          <div class="feature-card">
-            <h4>🔍 Search & Filter</h4>
-            <p>Search products, filter by category/price, sort by newest/popular/price, suggestions dropdown.</p>
-          </div>
-          <div class="feature-card">
-            <h4>📦 Product Detail</h4>
-            <p>Images slider, variants, offer price, wholesale price, stock, reviews, add to cart, trust badges.</p>
-          </div>
-          <div class="feature-card">
-            <h4>🛒 Cart & Checkout</h4>
-            <p>Add/remove items, apply coupon, select address, choose payment (COD/Razorpay/Stripe).</p>
-          </div>
-          <div class="feature-card">
-            <h4>📋 My Orders</h4>
-            <p>Order list with product images, status, total. Amazon-style layout with order header.</p>
-          </div>
-          <div class="feature-card">
-            <h4>📄 Invoice</h4>
-            <p>View/download tax invoice after delivery. Professional format with all details.</p>
-          </div>
-          <div class="feature-card">
-            <h4>🔄 Returns</h4>
-            <p>Request return within 10 days (if vendor enabled), upload proof image, track refund status.</p>
-          </div>
-          <div class="feature-card">
-            <h4>⭐ Reviews</h4>
-            <p>Write product reviews with rating (1-5), title, comment. Available on order detail page.</p>
-          </div>
-          <div class="feature-card">
-            <h4>👤 Profile</h4>
-            <p>Edit name/phone, manage saved addresses, WhatsApp support button.</p>
-          </div>
-          <div class="feature-card">
-            <h4>💬 Support</h4>
-            <p>WhatsApp chat support button on profile page to contact admin.</p>
-          </div>
-        </div>
-      </div>
-
-      <div class="section">
-        <h2>Customer Workflows</h2>
-        <div class="flow">
-          <h4>Placing an Order</h4>
-          <ol>
-            <li>Browse products → Add to cart</li>
-            <li>Go to Cart → Apply coupon (optional) → Checkout</li>
-            <li>Select/add delivery address</li>
-            <li>Choose payment: COD (if vendor allows), Razorpay, or Stripe</li>
-            <li>Review order → Confirm & Pay</li>
-            <li>Order confirmation page shown</li>
-          </ol>
-        </div>
-        <div class="flow">
-          <h4>Return & Refund</h4>
-          <ol>
-            <li>Go to order detail (delivered order)</li>
-            <li>Click "Request Return" (only if vendor has return policy enabled)</li>
-            <li>Upload proof image + write reason</li>
-            <li>Vendor reviews → approves/rejects</li>
-            <li>If approved → admin processes refund</li>
-            <li>Amount credited in 3-5 business days</li>
-          </ol>
-        </div>
-        <div class="flow">
-          <h4>Registration</h4>
-          <ol>
-            <li>Enter email → Click "Send OTP" → verify email</li>
-            <li>Enter phone number (required)</li>
-            <li>Set password → Create Account</li>
-          </ol>
-        </div>
-      </div>
-    </div>
-
-    <!-- TROUBLESHOOTING -->
-    <div id="panel-troubleshoot" class="panel">
       <div class="section">
         <h2>🔧 Troubleshooting & Common Issues</h2>
-
-        <div class="troubleshoot">
-          <h4>❌ "ECONNREFUSED" errors in frontend</h4>
-          <p>Backend server is not running. Start it:</p>
-          <p><code>cd backend && npm run dev</code></p>
-        </div>
-
-        <div class="troubleshoot">
-          <h4>❌ Email OTP not sending</h4>
-          <ul>
-            <li>Check <code>backend/.env</code> has correct SMTP_USER and SMTP_PASS</li>
-            <li>For Gmail: use App Password (not regular password)</li>
-            <li>Google Account → Security → 2-Step Verification → App Passwords</li>
-            <li>Restart backend after changing .env</li>
-          </ul>
-        </div>
-
-        <div class="troubleshoot">
-          <h4>❌ OTP verification fails ("Invalid or expired")</h4>
-          <ul>
-            <li>Send a NEW OTP (don't use old ones)</li>
-            <li>Check MySQL timezone matches your system</li>
-            <li>OTP expires in 10 minutes</li>
-            <li>Run: <code>SELECT NOW();</code> in MySQL to verify time</li>
-          </ul>
-        </div>
-
-        <div class="troubleshoot">
-          <h4>❌ Migration fails with "Duplicate column"</h4>
-          <ul>
-            <li>Column already exists from a previous failed migration</li>
-            <li>Delete the migration record: <code>DELETE FROM migrations WHERE filename='xxx.sql'</code></li>
-            <li>Remove the duplicate ALTER from the .sql file</li>
-            <li>Re-run: <code>npx ts-node src/db/migrate.ts</code></li>
-          </ul>
-        </div>
-
-        <div class="troubleshoot">
-          <h4>❌ MySQL GROUP BY error</h4>
-          <p>Wrap non-grouped columns with <code>ANY_VALUE()</code> in SELECT</p>
-        </div>
-
-        <div class="troubleshoot">
-          <h4>❌ Firebase Phone Auth "BILLING_NOT_ENABLED"</h4>
-          <ul>
-            <li>Firebase Phone Auth requires Blaze plan (pay-as-you-go)</li>
-            <li>Free tier: 10,000 verifications/month</li>
-            <li>But requires a billing account (credit card) linked</li>
-          </ul>
-        </div>
-
-        <div class="troubleshoot">
-          <h4>❌ WhatsApp button not showing</h4>
-          <ul>
-            <li>Check <code>ADMIN_WHATSAPP</code> is set in backend/.env</li>
-            <li>Restart backend after adding it</li>
-            <li>Number format: country code + number (e.g., 919876543210)</li>
-          </ul>
-        </div>
-
-        <div class="troubleshoot">
-          <h4>❌ Offer price not applying in cart</h4>
-          <ul>
-            <li>Check offer dates (must be active: start ≤ now ≤ end)</li>
-            <li>Restart backend to pick up code changes</li>
-            <li>Remove item from cart and re-add</li>
-          </ul>
-        </div>
-
-        <div class="troubleshoot">
-          <h4>❌ Invoice not showing vendor details</h4>
-          <ul>
-            <li>Vendor must fill: Business Address, GST, Signature in Profile</li>
-            <li>These fields appear on invoice only if filled</li>
-          </ul>
-        </div>
+        <div class="troubleshoot"><h4>❌ "ECONNREFUSED" errors</h4><p>Backend server not running. Start: <code>cd backend && npm run dev</code></p></div>
+        <div class="troubleshoot"><h4>❌ Email OTP not sending</h4><ul>
+          <li>Check backend/.env has correct SMTP_USER and SMTP_PASS</li>
+          <li>For Gmail: use App Password (not regular password)</li>
+          <li>Restart backend after changing .env</li>
+        </ul></div>
+        <div class="troubleshoot"><h4>❌ OTP verification fails</h4><ul>
+          <li>Send a NEW OTP (old ones expire in 10 min)</li>
+          <li>Check MySQL timezone matches system</li>
+        </ul></div>
+        <div class="troubleshoot"><h4>❌ Migration fails "Duplicate column"</h4><ul>
+          <li>Delete the migration record: <code>DELETE FROM migrations WHERE filename='xxx.sql'</code></li>
+          <li>Re-run: <code>npx ts-node src/db/migrate.ts</code></li>
+        </ul></div>
+        <div class="troubleshoot"><h4>❌ Vendor disabled but products still showing</h4><ul>
+          <li>Restart backend after disabling vendor</li>
+          <li>Products filter by v.status = 'approved' — disabled vendors are automatically hidden</li>
+        </ul></div>
+        <div class="troubleshoot"><h4>❌ MRP not showing on product</h4><ul>
+          <li>MRP must be greater than Retail Price to show strikethrough</li>
+          <li>MySQL returns decimals as strings — ensure Number() comparison</li>
+        </ul></div>
+        <div class="troubleshoot"><h4>❌ Theme not changing</h4><ul>
+          <li>Go to Admin → Settings → Storefront Theme</li>
+          <li>Select theme and refresh the storefront page</li>
+          <li>Check /api/v1/settings/theme returns correct value</li>
+        </ul></div>
       </div>
 
       <div class="section">
         <h2>🚀 Deployment Checklist</h2>
         <table>
-          <tr><th>Step</th><th>Command / Action</th></tr>
-          <tr><td>Install dependencies</td><td><code>npm install</code> (root, frontend, backend)</td></tr>
+          <tr><th>Step</th><th>Command</th></tr>
+          <tr><td>Install dependencies</td><td><code>npm install</code> (frontend & backend)</td></tr>
           <tr><td>Run migrations</td><td><code>cd backend && npx ts-node src/db/migrate.ts</code></td></tr>
           <tr><td>Seed data (optional)</td><td><code>npx ts-node src/db/seed.ts</code></td></tr>
           <tr><td>Build frontend</td><td><code>cd frontend && npm run build</code></td></tr>
@@ -448,21 +174,151 @@
           <tr><th>Variable</th><th>Description</th></tr>
           <tr><td>DB_HOST, DB_PORT, DB_USER, DB_PASS, DB_NAME</td><td>MySQL connection</td></tr>
           <tr><td>JWT_SECRET</td><td>Token signing secret</td></tr>
-          <tr><td>SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS</td><td>Email sending (Gmail)</td></tr>
+          <tr><td>SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS</td><td>Email (Gmail SMTP)</td></tr>
           <tr><td>RAZORPAY_KEY_ID, RAZORPAY_KEY_SECRET</td><td>Payment gateway</td></tr>
           <tr><td>FRONTEND_URL</td><td>Frontend URL for CORS</td></tr>
-          <tr><td>ADMIN_WHATSAPP</td><td>Admin WhatsApp number (with country code)</td></tr>
+          <tr><td>ADMIN_WHATSAPP</td><td>Admin WhatsApp (with country code)</td></tr>
         </table>
       </div>
     </div>
+
+    <!-- VENDOR PANEL -->
+    <div id="panel-vendor" class="panel">
+      <div class="section">
+        <h2>🏪 Vendor Panel Features</h2>
+        <p>Access: <span class="path">/vendor</span> — Manage your store</p>
+        <div class="feature-grid">
+          <div class="feature-card"><h4>📊 Dashboard</h4><p>Stats (products, orders, balance, pending), quick actions, contact admin via WhatsApp.</p></div>
+          <div class="feature-card"><h4>📦 Products</h4><p>Add/edit/delete products with MRP + Retail Price, upload images, set variants, wholesale pricing, enable/disable products, CSV bulk import.</p></div>
+          <div class="feature-card"><h4>🛒 Orders</h4><p>View orders, mark shipped/delivered, print invoice, view return requests.</p></div>
+          <div class="feature-card"><h4>🏷️ Offers / Sales</h4><p>Create discount offers, bulk apply to multiple products, set date range.</p></div>
+          <div class="feature-card"><h4>⭐ Reviews</h4><p>View all customer reviews for your products.</p></div>
+          <div class="feature-card"><h4>🔔 Notifications</h4><p>Send email to your customers, share via WhatsApp, copy phone numbers.</p></div>
+          <div class="feature-card"><h4>🎟️ Coupons</h4><p>Create discount codes (percentage/fixed), set min order, usage limit, expiry.</p></div>
+          <div class="feature-card"><h4>💰 Earnings & Withdrawals</h4><p>View balance, request withdrawals, see history.</p></div>
+          <div class="feature-card"><h4>👤 Profile</h4><p>Store logo/banner, business address, GST/FSSAI, bank details, signature, return policy, COD toggle, delivery settings, WhatsApp.</p></div>
+        </div>
+      </div>
+
+      <div class="section">
+        <h2>Vendor Workflows</h2>
+        <div class="flow"><h4>Adding a Product</h4><ol>
+          <li>Go to Products → Add Product</li>
+          <li>Fill: Name, Description, MRP, Retail Price, Stock, Category, Brand</li>
+          <li>Upload images (up to 5) — URL or file upload</li>
+          <li>Set delivery charge type (per piece, per kg, or store default)</li>
+          <li>Optionally enable wholesale pricing (price + min qty)</li>
+          <li>Optionally add variants (size, color, etc.) with individual prices/stock</li>
+          <li>Submit → status: "pending_approval" → admin approves</li>
+        </ol></div>
+        <div class="flow"><h4>Product Pricing Display</h4><ol>
+          <li>MRP shows as strikethrough with % off badge</li>
+          <li>Retail Price is the selling price (what customer pays)</li>
+          <li>If offer active: Retail Price shows as strikethrough, offer price displayed</li>
+          <li>If wholesale enabled: wholesale price shown for bulk buyers</li>
+        </ol></div>
+        <div class="flow"><h4>Enable/Disable Products</h4><ol>
+          <li>Go to Products list</li>
+          <li>Click eye icon to disable (product hidden from storefront)</li>
+          <li>Click again to re-enable</li>
+        </ol></div>
+        <div class="flow"><h4>CSV Bulk Import</h4><ol>
+          <li>Go to Products → Import</li>
+          <li>Upload product images first (bulk upload)</li>
+          <li>Paste CSV data with columns: name, description, price, category_name, stock</li>
+          <li>Optional: image_url, wholesale_enabled, wholesale_price, wholesale_min_qty</li>
+          <li>Tamil text supported in name and description fields</li>
+        </ol></div>
+      </div>
+    </div>
+
+    <!-- CUSTOMER PANEL -->
+    <div id="panel-customer" class="panel">
+      <div class="section">
+        <h2>🛍️ Customer Features</h2>
+        <p>Access: <span class="path">/customer</span> — Shop and manage orders</p>
+        <div class="feature-grid">
+          <div class="feature-card"><h4>🏠 Homepage</h4><p>Banner slider, vendor spotlight, deals, categories, featured products, new arrivals, best sellers.</p></div>
+          <div class="feature-card"><h4>🔍 Search & Filter</h4><p>Search products, filter by category/price/brand/rating/availability, sort options.</p></div>
+          <div class="feature-card"><h4>📦 Product Detail</h4><p>Images, variants, MRP vs retail price, offer price, wholesale, stock, reviews, add to cart.</p></div>
+          <div class="feature-card"><h4>❤️ Wishlist</h4><p>Save products to wishlist (heart icon). View wishlist page, add to cart from there. Works for guests too.</p></div>
+          <div class="feature-card"><h4>🛒 Cart & Checkout</h4><p>Add/remove items, apply coupon, select address, choose payment (COD/Razorpay).</p></div>
+          <div class="feature-card"><h4>📋 My Orders</h4><p>Order list with product images, status tracking, invoice download.</p></div>
+          <div class="feature-card"><h4>🔄 Returns</h4><p>Request return within policy period, upload proof image, track refund status.</p></div>
+          <div class="feature-card"><h4>⭐ Reviews</h4><p>Write product reviews with 1-5 star rating after delivery.</p></div>
+          <div class="feature-card"><h4>👤 Profile</h4><p>Edit name/phone, manage addresses, WhatsApp support.</p></div>
+        </div>
+      </div>
+
+      <div class="section">
+        <h2>Customer Workflows</h2>
+        <div class="flow"><h4>Registration (Separate Pages)</h4><ol>
+          <li>Customer: /auth/register — simple form (name, email, phone, password)</li>
+          <li>Seller: /auth/register/vendor — includes store name, GST, bank details</li>
+          <li>Email OTP verification required for both</li>
+        </ol></div>
+        <div class="flow"><h4>Placing an Order</h4><ol>
+          <li>Browse products → Add to cart (or from wishlist)</li>
+          <li>Go to Cart → Apply coupon (optional) → Checkout</li>
+          <li>Select/add delivery address</li>
+          <li>Choose payment: COD (if vendor allows) or Razorpay</li>
+          <li>Confirm & Pay → Order confirmation shown</li>
+        </ol></div>
+      </div>
+    </div>
+
+    <!-- STOREFRONT PANEL -->
+    <div id="panel-storefront" class="panel">
+      <div class="section">
+        <h2>🌐 Storefront Features</h2>
+        <div class="feature-grid">
+          <div class="feature-card"><h4>🎨 Multi-Theme Support</h4><p>Admin can switch between Default and TekMarts themes from Settings. Changes apply instantly to all visitors.</p></div>
+          <div class="feature-card"><h4>📱 Mobile Responsive</h4><p>All pages fully responsive. Mobile menu, touch-friendly filters, optimized cards.</p></div>
+          <div class="feature-card"><h4>🏷️ MRP + Discount Display</h4><p>Products show MRP (strikethrough) with retail price and % off badge automatically.</p></div>
+          <div class="feature-card"><h4>🔍 Advanced Filters</h4><p>Category (with "More" popup), Price range, Brand, Rating (checkbox), Availability (In Stock / Out of Stock).</p></div>
+          <div class="feature-card"><h4>❤️ Wishlist</h4><p>Heart icon on product cards and header. Count badge. Full wishlist page with "Add to Cart" action.</p></div>
+          <div class="feature-card"><h4>🏪 Vendor Stores</h4><p>Each vendor has a public store page (/vendor/slug) showing their products.</p></div>
+          <div class="feature-card"><h4>📦 Out of Stock Display</h4><p>Products with 0 stock show "Out of Stock" label. Can be filtered in product listing.</p></div>
+          <div class="feature-card"><h4>🔗 Clean Navigation</h4><p>Single-row header: Logo | Nav (Home, Categories, Latest, Offers, Contact) | Search | Wishlist | Cart | Login. "Sell on GoMarts" on right.</p></div>
+        </div>
+      </div>
+
+      <div class="section">
+        <h2>Theme Options</h2>
+        <table>
+          <tr><th>Theme</th><th>Style</th><th>Description</th></tr>
+          <tr><td>Default</td><td>Orange/White</td><td>Classic marketplace with full navigation, orange accents, rounded cards</td></tr>
+          <tr><td>TekMarts</td><td>Dark Header</td><td>Dark nav bar, light gray background, minimal product cards, vendor spotlight section</td></tr>
+        </table>
+        <p style="font-size:0.85rem;color:#6b7280;margin-top:8px;">Admin → Settings → Storefront Theme to switch.</p>
+      </div>
+    </div>
+
   </div>
 
   <script>
+    const params = new URLSearchParams(window.location.search);
+    const role = params.get('role') || 'admin';
+
+    // Hide admin-only sections for vendors
+    if (role === 'vendor') {
+      // Hide Admin tab and credentials
+      document.querySelectorAll('.tab')[0].style.display = 'none';
+      document.querySelector('.credentials').style.display = 'none';
+      // Show vendor panel by default
+      showPanel('vendor');
+    }
+
     function showPanel(name) {
       document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
       document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
       document.getElementById('panel-' + name).classList.add('active');
-      event.target.classList.add('active');
+      // Find the matching tab
+      document.querySelectorAll('.tab').forEach(t => {
+        if (t.getAttribute('onclick') && t.getAttribute('onclick').includes("'" + name + "'")) {
+          t.classList.add('active');
+        }
+      });
     }
   </script>
 </body>

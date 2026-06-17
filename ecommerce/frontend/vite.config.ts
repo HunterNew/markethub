@@ -8,6 +8,20 @@ export default defineConfig({
     environment: 'jsdom',
     setupFiles: './src/test/setup.ts',
   },
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          vendor: ['react', 'react-dom', 'react-router-dom'],
+          ui: ['lucide-react'],
+        }
+      }
+    },
+    minify: 'terser',
+    terserOptions: {
+      compress: { drop_console: true }
+    }
+  },
   server: {
     host: '0.0.0.0',
     port: 5173,

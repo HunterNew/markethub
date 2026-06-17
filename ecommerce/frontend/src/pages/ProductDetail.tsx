@@ -8,6 +8,7 @@ import { formatCurrency, formatDate } from '../utils/helpers'
 import { Skeleton, StatusBadge } from '../components/ui'
 import toast from '../components/ui/Toast'
 import VariantSelector, { ProductVariant } from '../components/storefront/VariantSelector'
+import ProductCard from '../components/storefront/ProductCard'
 
 export default function ProductDetail() {
   const { id } = useParams<{ id: string }>()
@@ -171,6 +172,14 @@ export default function ProductDetail() {
               <Store size={14} /> {product.store_name}
             </Link>
 
+            {/* Brand */}
+            {product.brand_name && (
+              <div className="flex items-center gap-2">
+                {product.brand_logo_url && <img src={product.brand_logo_url} alt={product.brand_name} className="w-6 h-6 rounded object-contain" />}
+                <span className="text-sm text-gray-600 font-medium">{product.brand_name}</span>
+              </div>
+            )}
+
             <h1 className="text-2xl md:text-3xl font-bold text-gray-900">{product.name}</h1>
 
             {/* Rating */}
@@ -187,7 +196,7 @@ export default function ProductDetail() {
 
             {/* Price */}
             <div className="bg-orange-50 rounded-2xl p-4 border border-orange-100">
-              <div className="flex items-end gap-3">
+              <div className="flex items-end gap-3 flex-wrap">
                 <span className="text-3xl font-bold text-gray-900">{formatCurrency(displayPrice)}</span>
                 {selectedVariant && isWholesaleApplicable && (
                   <span className="text-lg text-gray-400 line-through">{formatCurrency(selectedVariant.price)}</span>
@@ -195,8 +204,16 @@ export default function ProductDetail() {
                 {(!!product.is_on_sale || isWholesaleApplicable) && !selectedVariant && !product.has_variants && (
                   <span className="text-lg text-gray-400 line-through">{formatCurrency(product.price)}</span>
                 )}
+                {/* MRP strikethrough when no sale/wholesale active */}
+                {!product.is_on_sale && !isWholesaleApplicable && !selectedVariant && !product.has_variants && product.mrp && Number(product.mrp) > Number(product.price) && (
+                  <span className="text-lg text-gray-400 line-through">{formatCurrency(Number(product.mrp))}</span>
+                )}
                 {discount > 0 && !selectedVariant && !product.has_variants && (
                   <span className="bg-red-500 text-white text-sm font-bold px-2 py-0.5 rounded-full">-{discount}%</span>
+                )}
+                {/* MRP discount badge */}
+                {!product.is_on_sale && !isWholesaleApplicable && !selectedVariant && !product.has_variants && product.mrp && Number(product.mrp) > Number(product.price) && (
+                  <span className="bg-green-500 text-white text-sm font-bold px-2 py-0.5 rounded-full">-{Math.round((1 - Number(product.price) / Number(product.mrp)) * 100)}%</span>
                 )}
                 {selectedVariant && isWholesaleApplicable && (
                   <span className="bg-blue-500 text-white text-sm font-bold px-2 py-0.5 rounded-full">
@@ -315,7 +332,7 @@ export default function ProductDetail() {
             <div className="grid grid-cols-2 gap-3 pt-2">
               {[
                 { icon: <Shield size={16} />, text: 'Secure Payment' },
-                { icon: <Truck size={16} />, text: 'Fast Delivery' },
+                { icon: <Truck size={16} />, text: `Delivery by ${(() => { const d = new Date(); d.setDate(d.getDate() + (Number(product.delivery_days) || 5)); return d.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', weekday: 'short' }) })()}` },
                 ...(product.return_policy_enabled ? [{ icon: <RefreshCw size={16} />, text: '10-Day Easy Returns' }] : []),
               ].map(b => (
                 <div key={b.text} className="flex items-center gap-2 text-sm text-gray-600 bg-gray-50 rounded-xl p-3">
@@ -418,6 +435,37 @@ export default function ProductDetail() {
             </div>
           )}
         </div>
+
+        {/* Related Products */}
+        {product.category_id && (
+          <RelatedProducts categoryId={product.category_id} currentProductId={product.id} />
+        )}
+      </div>
+    </div>
+  )
+}
+
+function RelatedProducts({ categoryId, currentProductId }: { categoryId: number; currentProductId: number }) {
+  const [products, setProducts] = useState<any[]>([])
+
+  useEffect(() => {
+    api.get(`/products?categoryId=${categoryId}&limit=8`)
+      .then(r => {
+        const filtered = (r.data.products || []).filter((p: any) => p.id !== currentProductId).slice(0, 4)
+        setProducts(filtered)
+      })
+      .catch(() => {})
+  }, [categoryId, currentProductId])
+
+  if (products.length === 0) return null
+
+  return (
+    <div className="mt-12">
+      <h2 className="text-xl font-bold text-gray-900 mb-5">Related Products</h2>
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+        {products.map(p => (
+          <ProductCard key={p.id} product={p} />
+        ))}
       </div>
     </div>
   )

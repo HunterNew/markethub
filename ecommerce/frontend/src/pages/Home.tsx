@@ -74,7 +74,7 @@ function BannerSlider() {
   if (!loaded) return (
     <div className="page-container mt-4">
       <div className="relative w-full h-[300px] sm:h-[400px] md:h-[500px] lg:h-[600px] overflow-hidden rounded-2xl">
-        <div className="absolute inset-0"><HeroSectionFallback /></div>
+        <div className="absolute inset-0"><HeroSectionFallback isActive={true} /></div>
       </div>
     </div>
   )
@@ -87,7 +87,7 @@ function BannerSlider() {
     <div className="relative w-full h-[300px] sm:h-[400px] md:h-[500px] lg:h-[600px] overflow-hidden group rounded-2xl">
       {/* Slide 0: Static Hero */}
       <div className={`absolute inset-0 transition-opacity duration-700 ease-in-out ${current === 0 ? 'opacity-100 z-10' : 'opacity-0 z-0 pointer-events-none'}`}>
-        <HeroSectionFallback />
+        <HeroSectionFallback isActive={current === 0} />
       </div>
 
       {/* Slides 1+: Admin Banners */}
@@ -97,48 +97,7 @@ function BannerSlider() {
           onClick={() => handleClick(banner)}
           className={`absolute inset-0 transition-opacity duration-700 ease-in-out ${(i + 1) === current ? 'opacity-100 z-10' : 'opacity-0 z-0 pointer-events-none'} ${banner.link_url ? 'cursor-pointer' : ''}`}
         >
-          <section className="relative overflow-hidden bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 text-white h-full rounded-2xl">
-            {/* Background decoration */}
-            <div className="absolute inset-0 overflow-hidden">
-              <div className="absolute -top-40 -right-40 w-96 h-96 bg-primary-500/20 rounded-full blur-3xl" />
-              <div className="absolute -bottom-40 -left-40 w-96 h-96 bg-primary-700/20 rounded-full blur-3xl" />
-            </div>
-
-            <div className="relative px-5 sm:px-8 md:px-12 py-6 sm:py-8 md:py-12 h-full flex items-center">
-              <div className="grid md:grid-cols-2 gap-6 md:gap-12 items-center w-full">
-                <div>
-                  {banner.subtitle && (
-                    <div className="inline-flex items-center gap-1.5 bg-primary-500/20 border border-primary-500/30 rounded-full px-3 py-1 text-xs sm:text-sm text-primary-300 font-medium mb-3 sm:mb-5">
-                      <Zap size={12} /> {banner.subtitle}
-                    </div>
-                  )}
-                  {banner.title && (
-                    <h2 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold leading-tight mb-3 sm:mb-5">
-                      {banner.title}
-                    </h2>
-                  )}
-                  {banner.description && (
-                    <p className="text-gray-300 text-xs sm:text-sm md:text-base mb-4 sm:mb-6 leading-relaxed">
-                      {banner.description}
-                    </p>
-                  )}
-                  {banner.link_url && (
-                    <div className="flex flex-wrap gap-2 sm:gap-3">
-                      <span className="btn-primary text-xs sm:text-sm px-4 sm:px-6 py-2 sm:py-2.5 inline-flex items-center gap-1">
-                        Shop Now <ArrowRight size={14} />
-                      </span>
-                    </div>
-                  )}
-                </div>
-
-                <div className="hidden md:block">
-                  <div className="rounded-xl overflow-hidden h-full max-h-[350px]">
-                    <img src={banner.image_url} alt={banner.title || 'Banner'} className="w-full h-full object-cover rounded-xl" />
-                  </div>
-                </div>
-              </div>
-            </div>
-          </section>
+          <BannerSlide banner={banner} isActive={(i + 1) === current} />
         </div>
       ))}
 
@@ -177,38 +136,124 @@ function BannerSlider() {
   )
 }
 
-function HeroSectionFallback() {
-  return (
-    <section className="relative overflow-hidden bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 text-white h-full rounded-2xl">
-      {/* Background decoration */}
-      <div className="absolute inset-0 overflow-hidden">
-        <div className="absolute -top-40 -right-40 w-96 h-96 bg-primary-500/20 rounded-full blur-3xl" />
-        <div className="absolute -bottom-40 -left-40 w-96 h-96 bg-primary-700/20 rounded-full blur-3xl" />
-      </div>
+function BannerSlide({ banner, isActive }: { banner: Banner; isActive: boolean }) {
+  const slideRef = useRef<HTMLDivElement>(null)
 
+  useEffect(() => {
+    if (!isActive || !slideRef.current) return
+    let ctx: any
+    import('gsap').then(({ gsap }) => {
+      if (!slideRef.current) return
+      ctx = gsap.context(() => {
+        gsap.set('.bn-anim', { opacity: 0, y: 30 })
+        gsap.set('.bn-img', { opacity: 0, scale: 0.88, x: 40 })
+        const tl = gsap.timeline({ defaults: { ease: 'power2.out', duration: 0.8 } })
+        tl.to('.bn-anim', { opacity: 1, y: 0, stagger: 0.12, delay: 0.15 })
+          .to('.bn-img', { opacity: 1, scale: 1, x: 0, duration: 0.9, ease: 'power2.out' }, '-=0.5')
+      }, slideRef)
+    })
+    return () => { if (ctx) ctx.revert() }
+  }, [isActive])
+
+  return (
+    <section ref={slideRef} className="relative overflow-hidden bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 text-white h-full rounded-2xl">
+      <div className="absolute inset-0 overflow-hidden">
+        <div className="absolute -top-40 -right-40 w-96 h-96 bg-primary-500/10 rounded-full blur-3xl" />
+        <div className="absolute -bottom-40 -left-40 w-96 h-96 bg-primary-700/10 rounded-full blur-3xl" />
+      </div>
       <div className="relative px-5 sm:px-8 md:px-12 py-6 sm:py-8 md:py-12 h-full flex items-center">
         <div className="grid md:grid-cols-2 gap-6 md:gap-12 items-center w-full">
           <div>
-            <div className="inline-flex items-center gap-1.5 bg-primary-500/20 border border-primary-500/30 rounded-full px-3 py-1 text-xs sm:text-sm text-primary-300 font-medium mb-3 sm:mb-5">
+            {banner.subtitle && (
+              <div className="bn-anim inline-flex items-center gap-1.5 bg-primary-500/20 border border-primary-500/30 rounded-full px-3 py-1 text-xs sm:text-sm text-primary-300 font-medium mb-3 sm:mb-5">
+                <Zap size={12} /> {banner.subtitle}
+              </div>
+            )}
+            {banner.title && (
+              <h2 className="bn-anim text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold leading-tight mb-3 sm:mb-5">
+                {banner.title}
+              </h2>
+            )}
+            {banner.description && (
+              <p className="bn-anim text-gray-300 text-xs sm:text-sm md:text-base mb-4 sm:mb-6 leading-relaxed max-w-md">
+                {banner.description}
+              </p>
+            )}
+            {banner.link_url && (
+              <div className="bn-anim flex flex-wrap gap-2 sm:gap-3">
+                <span className="btn-primary text-xs sm:text-sm px-4 sm:px-6 py-2 sm:py-2.5 inline-flex items-center gap-1">
+                  Shop Now <ArrowRight size={14} />
+                </span>
+              </div>
+            )}
+          </div>
+          <div className="hidden md:block">
+            <div className="bn-img rounded-xl overflow-hidden h-full max-h-[350px] bg-gray-700">
+              <img src={banner.image_url} alt={banner.title || 'Banner'} className="w-full h-full object-cover rounded-xl" />
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  )
+}
+
+function HeroSectionFallback({ isActive }: { isActive: boolean }) {
+  const heroRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    if (!isActive || !heroRef.current) return
+    let ctx: any
+    import('gsap').then(({ gsap }) => {
+      if (!heroRef.current) return
+      ctx = gsap.context(() => {
+        gsap.set('.hero-anim', { opacity: 0, y: 30 })
+        gsap.set('.hero-img', { opacity: 0, scale: 0.88, y: 20 })
+
+        const tl = gsap.timeline({ defaults: { ease: 'power2.out', duration: 0.8 } })
+        tl.to('.hero-badge', { opacity: 1, y: 0, delay: 0.1 })
+          .to('.hero-title', { opacity: 1, y: 0 }, '-=0.5')
+          .to('.hero-desc', { opacity: 1, y: 0 }, '-=0.5')
+          .to('.hero-btns', { opacity: 1, y: 0 }, '-=0.5')
+          .to('.hero-stats', { opacity: 1, y: 0 }, '-=0.4')
+          .to('.hero-img', { opacity: 1, scale: 1, y: 0, stagger: 0.15, duration: 0.9, ease: 'power2.out' }, '-=0.7')
+      }, heroRef)
+    })
+    return () => { if (ctx) ctx.revert() }
+  }, [isActive])
+
+  return (
+    <section ref={heroRef} className="relative overflow-hidden bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 text-white h-full rounded-2xl">
+      {/* Background decoration */}
+      <div className="absolute inset-0 overflow-hidden">
+        <div className="absolute -top-40 -right-40 w-96 h-96 bg-primary-500/10 rounded-full blur-3xl" />
+        <div className="absolute -bottom-40 -left-40 w-96 h-96 bg-primary-700/10 rounded-full blur-3xl" />
+      </div>
+
+      <div className="relative px-5 sm:px-8 md:px-12 py-6 sm:py-8 md:py-12 h-full flex items-center">
+        <div className="grid md:grid-cols-2 gap-6 md:gap-10 items-center w-full">
+          {/* Left content */}
+          <div>
+            <div className="hero-anim hero-badge inline-flex items-center gap-1.5 bg-primary-500/20 border border-primary-500/30 rounded-full px-3 py-1 text-xs sm:text-sm text-primary-300 font-medium mb-3 sm:mb-5">
               <Zap size={12} /> New arrivals every day
             </div>
-            <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold leading-tight mb-3 sm:mb-5">
+            <h1 className="hero-anim hero-title text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold leading-tight mb-3 sm:mb-5">
               Shop the Best
               <span className="text-primary-400 block">Multi-Vendor</span>
               Marketplace
             </h1>
-            <p className="text-gray-300 text-xs sm:text-sm md:text-base mb-4 sm:mb-6 leading-relaxed hidden sm:block">
+            <p className="hero-anim hero-desc text-gray-300 text-xs sm:text-sm md:text-base mb-4 sm:mb-6 leading-relaxed hidden sm:block max-w-md">
               Discover millions of products from verified vendors. Best prices, fast delivery, hassle-free returns.
             </p>
-            <div className="flex flex-wrap gap-2 sm:gap-3">
+            <div className="hero-anim hero-btns flex flex-wrap gap-2 sm:gap-3">
               <Link to="/products" className="btn-primary text-xs sm:text-sm px-4 sm:px-6 py-2 sm:py-2.5">
                 Shop Now <ArrowRight size={14} />
               </Link>
-              <Link to="/auth/register?role=vendor" className="btn-secondary text-xs sm:text-sm px-4 sm:px-6 py-2 sm:py-2.5 bg-white/10 border-white/20 text-white hover:bg-white/20">
+              <Link to="/auth/register/vendor" className="btn-secondary text-xs sm:text-sm px-4 sm:px-6 py-2 sm:py-2.5 bg-white/10 border-white/20 text-white hover:bg-white/20">
                 Start Selling
               </Link>
             </div>
-            <div className="flex items-center gap-4 sm:gap-6 mt-4 sm:mt-6 pt-4 sm:pt-6 border-t border-white/10">
+            <div className="hero-anim hero-stats flex items-center gap-4 sm:gap-6 mt-4 sm:mt-6 pt-4 sm:pt-6 border-t border-white/10">
               {[['50K+', 'Products'], ['2K+', 'Vendors'], ['100K+', 'Customers']].map(([val, label]) => (
                 <div key={label}>
                   <div className="text-lg sm:text-xl md:text-2xl font-bold text-white">{val}</div>
@@ -218,18 +263,18 @@ function HeroSectionFallback() {
             </div>
           </div>
 
+          {/* Right image grid */}
           <div className="hidden md:block">
-            <div className="grid grid-cols-2 gap-3">
-              {[
-                'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=300&h=300&fit=crop',
-                'https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=300&h=300&fit=crop',
-                'https://images.unsplash.com/photo-1542272604-787c3835535d?w=300&h=300&fit=crop',
-                'https://images.unsplash.com/photo-1548036328-c9fa89d128fa?w=300&h=300&fit=crop',
-              ].map((src, i) => (
-                <div key={i} className={`rounded-xl overflow-hidden ${i === 0 ? 'row-span-2' : ''}`}>
-                  <img src={src} alt="" className="w-full h-full object-cover" loading="lazy" />
-                </div>
-              ))}
+            <div className="grid grid-cols-2 gap-3 h-full">
+              <div className="hero-img row-span-2 rounded-xl overflow-hidden bg-gray-700">
+                <img src="https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=400&h=500&fit=crop" alt="" className="w-full h-full object-cover" />
+              </div>
+              <div className="hero-img rounded-xl overflow-hidden bg-gray-700">
+                <img src="https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=300&h=240&fit=crop" alt="" className="w-full h-full object-cover" />
+              </div>
+              <div className="hero-img rounded-xl overflow-hidden bg-gray-700">
+                <img src="https://images.unsplash.com/photo-1548036328-c9fa89d128fa?w=300&h=240&fit=crop" alt="" className="w-full h-full object-cover" />
+              </div>
             </div>
           </div>
         </div>
@@ -320,28 +365,152 @@ function CategoryGrid() {
 function ProductSection({ title, endpoint, viewAllHref }: { title: string; endpoint: string; viewAllHref: string }) {
   const [products, setProducts] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
+  const scrollRef = useRef<HTMLDivElement>(null)
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
   useEffect(() => {
     api.get(endpoint).then(r => setProducts(r.data.products || [])).catch(()=>{}).finally(() => setLoading(false))
   }, [endpoint])
 
+  // Auto-slide
+  useEffect(() => {
+    if (products.length <= 4 || !scrollRef.current) return
+    timerRef.current = setInterval(() => {
+      if (!scrollRef.current) return
+      const { scrollLeft, scrollWidth, clientWidth } = scrollRef.current
+      if (scrollLeft + clientWidth >= scrollWidth - 10) {
+        scrollRef.current.scrollTo({ left: 0, behavior: 'smooth' })
+      } else {
+        scrollRef.current.scrollBy({ left: clientWidth / 2, behavior: 'smooth' })
+      }
+    }, 4000)
+    return () => { if (timerRef.current) clearInterval(timerRef.current) }
+  }, [products])
+
   if (!loading && products.length === 0) return null
 
   return (
-    <section className="py-12">
+    <section className="py-10">
       <div className="page-container">
-        <div className="flex items-center justify-between mb-6">
+        <div className="flex items-center justify-between mb-5">
           <h2 className="section-title">{title}</h2>
           <Link to={viewAllHref} className="text-primary-500 hover:text-primary-700 text-sm font-semibold flex items-center gap-1">
             View all <ArrowRight size={14} />
           </Link>
         </div>
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-4 gap-4">
-          {loading
-            ? Array(4).fill(0).map((_, i) => <ProductCardSkeleton key={i} />)
-            : products.slice(0, 8).map(p => <ProductCard key={p.id} product={p} />)
-          }
+        {loading ? (
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+            {Array(4).fill(0).map((_, i) => <ProductCardSkeleton key={i} />)}
+          </div>
+        ) : (
+          <div ref={scrollRef} className="flex gap-3 overflow-x-auto scrollbar-hide scroll-smooth pb-2"
+            onMouseEnter={() => { if (timerRef.current) clearInterval(timerRef.current) }}
+            onMouseLeave={() => {
+              if (products.length <= 4) return
+              timerRef.current = setInterval(() => {
+                if (!scrollRef.current) return
+                const { scrollLeft, scrollWidth, clientWidth } = scrollRef.current
+                if (scrollLeft + clientWidth >= scrollWidth - 10) scrollRef.current.scrollTo({ left: 0, behavior: 'smooth' })
+                else scrollRef.current.scrollBy({ left: clientWidth / 2, behavior: 'smooth' })
+              }, 4000)
+            }}
+          >
+            {products.slice(0, 12).map(p => (
+              <div key={p.id} className="flex-shrink-0 w-[calc(50%-6px)] sm:w-[calc(33.33%-8px)] lg:w-[calc(25%-9px)]">
+                <ProductCard product={p} />
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </section>
+  )
+}
+
+function BestSellersSection() {
+  const [products, setProducts] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
+  const scrollRef = useRef<HTMLDivElement>(null)
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null)
+
+  useEffect(() => {
+    api.get('/products/best-sellers').then(r => setProducts(r.data.products || [])).catch(() => {}).finally(() => setLoading(false))
+  }, [])
+
+  useEffect(() => {
+    if (products.length <= 4 || !scrollRef.current) return
+    timerRef.current = setInterval(() => {
+      if (!scrollRef.current) return
+      const { scrollLeft, scrollWidth, clientWidth } = scrollRef.current
+      if (scrollLeft + clientWidth >= scrollWidth - 10) scrollRef.current.scrollTo({ left: 0, behavior: 'smooth' })
+      else scrollRef.current.scrollBy({ left: clientWidth / 2, behavior: 'smooth' })
+    }, 4000)
+    return () => { if (timerRef.current) clearInterval(timerRef.current) }
+  }, [products])
+
+  if (!loading && products.length === 0) return null
+
+  // Extract unique top vendors
+  const vendorMap = new Map<string, any>()
+  products.forEach(p => {
+    if (p.store_name && !vendorMap.has(p.store_name)) {
+      vendorMap.set(p.store_name, { name: p.store_name, slug: p.store_slug, logo: p.store_logo })
+    }
+  })
+  const topVendors = Array.from(vendorMap.values()).slice(0, 5)
+
+  return (
+    <section className="py-10">
+      <div className="page-container">
+        <div className="flex items-center justify-between mb-5">
+          <h2 className="section-title">🏆 Best Sellers</h2>
+          <Link to="/products?sort=popular" className="text-primary-500 hover:text-primary-700 text-sm font-semibold flex items-center gap-1">
+            View all <ArrowRight size={14} />
+          </Link>
         </div>
+
+        {/* Top Vendors */}
+        {topVendors.length > 0 && (
+          <div className="flex items-center gap-4 mb-5 pb-4 border-b border-gray-100 overflow-x-auto scrollbar-hide">
+            <span className="text-xs text-gray-500 font-medium flex-shrink-0">Top Stores:</span>
+            {topVendors.map(v => (
+              <Link key={v.name} to={v.slug ? `/vendor/${v.slug}` : '/products'} className="flex items-center gap-2 flex-shrink-0 hover:bg-gray-50 px-2 py-1 rounded-lg transition-colors">
+                {v.logo ? (
+                  <img src={v.logo} alt={v.name} className="w-6 h-6 rounded-full object-cover border border-gray-200" />
+                ) : (
+                  <div className="w-6 h-6 rounded-full bg-primary-100 flex items-center justify-center text-[10px] font-bold text-primary-600">{v.name[0]}</div>
+                )}
+                <span className="text-xs font-medium text-gray-700">{v.name}</span>
+              </Link>
+            ))}
+          </div>
+        )}
+
+        {/* Products carousel */}
+        {loading ? (
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+            {Array(4).fill(0).map((_, i) => <ProductCardSkeleton key={i} />)}
+          </div>
+        ) : (
+          <div ref={scrollRef} className="flex gap-3 overflow-x-auto scrollbar-hide scroll-smooth pb-2"
+            onMouseEnter={() => { if (timerRef.current) clearInterval(timerRef.current) }}
+            onMouseLeave={() => {
+              if (products.length <= 4) return
+              timerRef.current = setInterval(() => {
+                if (!scrollRef.current) return
+                const { scrollLeft, scrollWidth, clientWidth } = scrollRef.current
+                if (scrollLeft + clientWidth >= scrollWidth - 10) scrollRef.current.scrollTo({ left: 0, behavior: 'smooth' })
+                else scrollRef.current.scrollBy({ left: clientWidth / 2, behavior: 'smooth' })
+              }, 4000)
+            }}
+          >
+            {products.slice(0, 12).map(p => (
+              <div key={p.id} className="flex-shrink-0 w-[calc(50%-6px)] sm:w-[calc(33.33%-8px)] lg:w-[calc(25%-9px)]">
+                <ProductCard product={p} />
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     </section>
   )
@@ -473,7 +642,7 @@ export default function HomePage() {
       <ProductSection title="🔥 Featured Products" endpoint="/products/featured" viewAllHref="/products" />
       <BannerSection />
       <ProductSection title="🆕 New Arrivals" endpoint="/products/new-arrivals" viewAllHref="/products?sort=newest" />
-      <ProductSection title="🏆 Best Sellers" endpoint="/products/best-sellers" viewAllHref="/products?sort=popular" />
+      <BestSellersSection />
     </div>
   )
 }

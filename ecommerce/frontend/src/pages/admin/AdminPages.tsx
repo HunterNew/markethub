@@ -188,12 +188,19 @@ export function AdminVendors() {
     toast.success('Vendor rejected'); setRejectModal(null); setRejectReason(''); load(filter)
   }
 
+  const toggleVendor = async (id: number) => {
+    try {
+      const res = await api.patch(`/admin/vendors/${id}/toggle-status`)
+      toast.success(res.data.message); load(filter)
+    } catch { toast.error('Failed to update vendor status') }
+  }
+
   return (
     <AdminLayout>
       <div className="p-4 sm:p-6 lg:p-8">
         <h1 className="text-2xl font-bold text-gray-900 mb-6">Vendor Management</h1>
         <div className="flex gap-2 mb-6">
-          {['all', 'pending', 'approved', 'rejected'].map(s => (
+          {['all', 'pending', 'approved', 'disabled', 'rejected'].map(s => (
             <button key={s} onClick={() => setFilter(s)}
               className={`px-4 py-1.5 rounded-xl text-sm font-medium capitalize transition-colors ${filter === s ? 'bg-primary-500 text-white' : 'bg-white border border-gray-200 text-gray-600 hover:bg-gray-50'}`}>
               {s}
@@ -227,6 +234,15 @@ export function AdminVendors() {
                           <button onClick={() => approve(v.id)} className="p-1.5 hover:bg-green-50 rounded-lg text-green-600 transition-colors"><CheckCircle size={14} /></button>
                           <button onClick={() => setRejectModal(v)} className="p-1.5 hover:bg-red-50 rounded-lg text-red-500 transition-colors"><XCircle size={14} /></button>
                         </>
+                      )}
+                      {(v.status === 'approved' || v.status === 'disabled') && (
+                        <button
+                          onClick={() => toggleVendor(v.id)}
+                          className={`p-1.5 rounded-lg transition-colors ${v.status === 'approved' ? 'hover:bg-red-50 text-red-500' : 'hover:bg-green-50 text-green-600'}`}
+                          title={v.status === 'approved' ? 'Disable vendor' : 'Enable vendor'}
+                        >
+                          {v.status === 'approved' ? <ToggleRight size={14} /> : <ToggleLeft size={14} />}
+                        </button>
                       )}
                     </div>
                   </td>
@@ -654,6 +670,65 @@ export function AdminReports() {
   )
 }
 
+// ============ THEME SELECTOR ============
+function ThemeSelector() {
+  const [activeTheme, setActiveTheme] = useState<string>('default')
+  const [saving, setSaving] = useState(false)
+
+  useEffect(() => {
+    api.get('/settings/theme').then(r => setActiveTheme(r.data.theme || 'default')).catch(() => {})
+  }, [])
+
+  const themes = [
+    { id: 'default', name: 'Default', desc: 'Classic orange marketplace theme with full-width banners' },
+    { id: 'tekmarts', name: 'TekMarts', desc: 'Modern dark header, minimal product cards, vendor spotlight' },
+    { id: 'darkglass', name: 'Dark Glass', desc: 'Premium dark theme with glassmorphism, gradient glow, amber search bar' },
+  ]
+
+  const selectTheme = async (id: string) => {
+    setSaving(true)
+    try {
+      await api.put('/admin/settings/site_theme', { value: id })
+      setActiveTheme(id)
+      document.documentElement.setAttribute('data-theme', id)
+      toast.success(`Theme changed to "${themes.find(t => t.id === id)?.name}". Refresh storefront to see changes.`)
+    } catch {
+      toast.error('Failed to update theme')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return (
+    <div className="card p-6 mb-6">
+      <h2 className="font-bold text-gray-900 mb-1">Storefront Theme</h2>
+      <p className="text-xs text-gray-500 mb-4">Choose a layout template for the customer-facing storefront</p>
+      <div className="grid sm:grid-cols-2 gap-4">
+        {themes.map(t => (
+          <button
+            key={t.id}
+            onClick={() => selectTheme(t.id)}
+            disabled={saving}
+            className={`text-left p-4 rounded-xl border-2 transition-all ${
+              activeTheme === t.id
+                ? 'border-primary-500 bg-orange-50 ring-2 ring-primary-200'
+                : 'border-gray-200 hover:border-gray-300 bg-white'
+            }`}
+          >
+            <div className="flex items-center gap-2 mb-2">
+              <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center ${activeTheme === t.id ? 'border-primary-500' : 'border-gray-300'}`}>
+                {activeTheme === t.id && <div className="w-2 h-2 rounded-full bg-primary-500" />}
+              </div>
+              <span className="font-semibold text-sm text-gray-900">{t.name}</span>
+            </div>
+            <p className="text-xs text-gray-500 ml-6">{t.desc}</p>
+          </button>
+        ))}
+      </div>
+    </div>
+  )
+}
+
 // ============ ADMIN SETTINGS ============
 export function AdminSettings() {
   const [settings, setSettings] = useState<any>({})
@@ -701,6 +776,9 @@ export function AdminSettings() {
       <div className="p-8 space-y-8 max-w-3xl">
         <div>
           <h1 className="text-2xl font-bold text-gray-900 mb-6">Platform Settings</h1>
+
+          {/* Theme Selector */}
+          <ThemeSelector />
 
           {/* Commission */}
           <div className="card p-6 mb-6">
@@ -898,25 +976,32 @@ export function AdminCategories() {
   const [loading, setLoading] = useState(true)
   const [showModal, setShowModal] = useState(false)
   const [editingCat, setEditingCat] = useState<any>(null)
-  const [form, setForm] = useState({ name: '', description: '', imageUrl: '' })
+  const [form, setForm] = useState({ name: '', description: '', imageUrl: '', parentId: '' })
+  const [catRequests, setCatRequests] = useState<any[]>([])
 
   const load = () => {
     setLoading(true)
-    api.get('/categories').then(r => setCategories(r.data.categories || [])).catch(() => {}).finally(() => setLoading(false))
+    Promise.all([
+      api.get('/categories/all'),
+      api.get('/admin/category-requests').catch(() => ({ data: { requests: [] } })),
+    ]).then(([c, r]) => {
+      setCategories(c.data.categories || [])
+      setCatRequests(r.data.requests || [])
+    }).catch(() => {}).finally(() => setLoading(false))
   }
   useEffect(load, [])
 
-  const openAdd = () => { setEditingCat(null); setForm({ name: '', description: '', imageUrl: '' }); setShowModal(true) }
-  const openEdit = (cat: any) => { setEditingCat(cat); setForm({ name: cat.name, description: cat.description || '', imageUrl: cat.image_url || '' }); setShowModal(true) }
+  const openAdd = (parentId?: number) => { setEditingCat(null); setForm({ name: '', description: '', imageUrl: '', parentId: parentId ? String(parentId) : '' }); setShowModal(true) }
+  const openEdit = (cat: any) => { setEditingCat(cat); setForm({ name: cat.name, description: cat.description || '', imageUrl: cat.image_url || '', parentId: cat.parent_id ? String(cat.parent_id) : '' }); setShowModal(true) }
 
   const handleSave = async () => {
     if (!form.name.trim()) { toast.error('Category name is required'); return }
     try {
       if (editingCat) {
-        await api.put(`/admin/categories/${editingCat.id}`, { name: form.name, description: form.description, imageUrl: form.imageUrl || null })
+        await api.put(`/categories/${editingCat.id}`, { name: form.name, description: form.description, imageUrl: form.imageUrl || null })
         toast.success('Category updated')
       } else {
-        await api.post('/admin/categories', { name: form.name, description: form.description, imageUrl: form.imageUrl || null })
+        await api.post('/categories', { name: form.name, description: form.description, imageUrl: form.imageUrl || null, parentId: form.parentId ? Number(form.parentId) : null })
         toast.success('Category created')
       }
       setShowModal(false)
@@ -927,7 +1012,7 @@ export function AdminCategories() {
   const handleDelete = async (id: number) => {
     if (!confirm('Delete this category? Products in it will lose their category.')) return
     try {
-      await api.delete(`/admin/categories/${id}`)
+      await api.delete(`/categories/${id}`)
       toast.success('Category deleted')
       load()
     } catch { toast.error('Failed to delete category') }
@@ -941,26 +1026,84 @@ export function AdminCategories() {
             <h1 className="text-2xl font-bold text-gray-900">Categories</h1>
             <p className="text-gray-500 text-sm mt-1">{categories.length} categories</p>
           </div>
-          <button onClick={openAdd} className="btn-primary"><Plus size={16} /> Add Category</button>
+          <button onClick={() => openAdd()} className="btn-primary"><Plus size={16} /> Add Category</button>
         </div>
 
         {loading ? <Skeleton className="h-64 rounded-2xl" /> : (
-          <div className="card overflow-hidden">
-            <Table headers={['Name', 'Description', 'Products', 'Actions']}>
-              {categories.map(cat => (
-                <tr key={cat.id}>
-                  <td className="px-6 py-4 font-medium text-gray-900">{cat.name}</td>
-                  <td className="px-6 py-4 text-sm text-gray-500 max-w-xs truncate">{cat.description || '—'}</td>
-                  <td className="px-6 py-4 text-sm text-gray-500">{cat.product_count || 0}</td>
-                  <td className="px-6 py-4">
-                    <div className="flex gap-2">
-                      <button onClick={() => openEdit(cat)} className="text-blue-500 hover:text-blue-700"><Edit2 size={16} /></button>
-                      <button onClick={() => handleDelete(cat.id)} className="text-red-500 hover:text-red-700"><Trash2 size={16} /></button>
+          <div className="space-y-2">
+            {categories.filter(c => !c.parent_id).map(cat => {
+              const subs = categories.filter(c => c.parent_id === cat.id)
+              return (
+                <div key={cat.id} className="border border-gray-200 rounded-xl bg-white overflow-hidden">
+                  {/* Parent Category */}
+                  <div className="flex items-center justify-between px-5 py-4">
+                    <div className="flex items-center gap-3">
+                      {subs.length > 0 && (
+                        <button onClick={() => {
+                          const el = document.getElementById(`subs-${cat.id}`)
+                          if (el) el.classList.toggle('hidden')
+                        }} className="text-gray-400 hover:text-gray-600">
+                          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M6 9l6 6 6-6"/></svg>
+                        </button>
+                      )}
+                      {!subs.length && <div className="w-4" />}
+                      <div>
+                        <p className="font-semibold text-gray-900">{cat.name}</p>
+                        {cat.description && <p className="text-xs text-gray-400">{cat.description}</p>}
+                      </div>
                     </div>
-                  </td>
-                </tr>
-              ))}
-            </Table>
+                    <div className="flex items-center gap-4">
+                      <span className="text-xs text-gray-400">{cat.product_count || 0} products</span>
+                      {cat.status === 'pending' ? (
+                        <span className="text-xs bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full font-medium">Pending</span>
+                      ) : (
+                        <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full font-medium">Active</span>
+                      )}
+                      <div className="flex gap-1.5">
+                        {cat.status === 'pending' && (
+                          <>
+                            <button onClick={async () => { await api.put(`/categories/${cat.id}/approve`, { status: 'active' }); toast.success('Approved'); load() }} className="text-xs bg-green-50 text-green-700 px-2 py-1 rounded-lg font-medium">Approve</button>
+                            <button onClick={async () => { await api.put(`/categories/${cat.id}/approve`, { status: 'rejected' }); toast.success('Rejected'); load() }} className="text-xs bg-red-50 text-red-700 px-2 py-1 rounded-lg font-medium">Reject</button>
+                          </>
+                        )}
+                        <button onClick={() => openAdd(cat.id)} className="p-1.5 hover:bg-gray-100 rounded-lg text-primary-500" title="Add subcategory"><Plus size={14} /></button>
+                        <button onClick={() => openEdit(cat)} className="p-1.5 hover:bg-gray-100 rounded-lg text-blue-500"><Edit2 size={14} /></button>
+                        <button onClick={() => handleDelete(cat.id)} className="p-1.5 hover:bg-red-50 rounded-lg text-red-500"><Trash2 size={14} /></button>
+                      </div>
+                    </div>
+                  </div>
+                  {/* Subcategories */}
+                  {subs.length > 0 && (
+                    <div id={`subs-${cat.id}`} className="border-t border-gray-100 bg-gray-50 px-5 py-2">
+                      {subs.map(sub => (
+                        <div key={sub.id} className="flex items-center justify-between py-2 pl-7 border-b border-gray-100 last:border-0">
+                          <div className="flex items-center gap-2">
+                            <span className="text-gray-300">↳</span>
+                            <div>
+                              <p className="text-sm font-medium text-gray-700">{sub.name}</p>
+                              {sub.vendor_name && <p className="text-[10px] text-gray-400">by {sub.vendor_name}</p>}
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-3">
+                            <span className="text-xs text-gray-400">{sub.product_count || 0}</span>
+                            {sub.status === 'pending' ? (
+                              <div className="flex gap-1.5">
+                                <button onClick={async () => { await api.put(`/categories/${sub.id}/approve`, { status: 'active' }); toast.success('Approved'); load() }} className="text-xs bg-green-50 text-green-700 px-2 py-1 rounded-lg font-medium">Approve</button>
+                                <button onClick={async () => { await api.put(`/categories/${sub.id}/approve`, { status: 'rejected' }); toast.success('Rejected'); load() }} className="text-xs bg-red-50 text-red-700 px-2 py-1 rounded-lg font-medium">Reject</button>
+                              </div>
+                            ) : (
+                              <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full font-medium">Active</span>
+                            )}
+                            <button onClick={() => openEdit(sub)} className="p-1 hover:bg-gray-200 rounded text-blue-500"><Edit2 size={12} /></button>
+                            <button onClick={() => handleDelete(sub.id)} className="p-1 hover:bg-red-100 rounded text-red-500"><Trash2 size={12} /></button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )
+            })}
             {categories.length === 0 && <div className="p-8 text-center text-gray-400">No categories yet</div>}
           </div>
         )}
@@ -970,6 +1113,15 @@ export function AdminCategories() {
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Name</label>
               <input className="input" value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} placeholder="e.g. Electronics" />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Parent Category (for subcategory)</label>
+              <select className="input" value={form.parentId} onChange={e => setForm({ ...form, parentId: e.target.value })}>
+                <option value="">None (top-level category)</option>
+                {categories.filter(c => !c.parent_id && c.status === 'active').map(c => (
+                  <option key={c.id} value={c.id}>{c.name}</option>
+                ))}
+              </select>
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
@@ -985,6 +1137,30 @@ export function AdminCategories() {
             </div>
           </div>
         </Modal>
+
+        {/* Category Requests from Vendors */}
+        {catRequests.filter(r => r.status === 'pending').length > 0 && (
+          <div className="mt-8">
+            <h2 className="text-lg font-bold text-gray-900 mb-4">Vendor Category Requests</h2>
+            <div className="space-y-3">
+              {catRequests.filter(r => r.status === 'pending').map(r => (
+                <div key={r.id} className="border border-gray-200 rounded-xl bg-white p-4 flex items-center justify-between">
+                  <div>
+                    <p className="font-medium text-gray-900">{r.name}</p>
+                    {r.description && <p className="text-xs text-gray-500">{r.description}</p>}
+                    <p className="text-xs text-gray-400 mt-1">From: {r.vendor_name}</p>
+                  </div>
+                  <div className="flex gap-2">
+                    <button onClick={async () => { await api.put(`/admin/category-requests/${r.id}`, { status: 'approved' }); toast.success('Category approved & created'); load() }}
+                      className="text-xs bg-green-50 text-green-700 hover:bg-green-100 px-3 py-1.5 rounded-lg font-medium">Approve</button>
+                    <button onClick={async () => { await api.put(`/admin/category-requests/${r.id}`, { status: 'rejected', adminNote: 'Not needed' }); toast.success('Request rejected'); load() }}
+                      className="text-xs bg-red-50 text-red-700 hover:bg-red-100 px-3 py-1.5 rounded-lg font-medium">Reject</button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
     </AdminLayout>
   )
@@ -1739,5 +1915,224 @@ function CustomerPhoneList() {
         <p className="text-blue-500 mt-2">Tip: Save all customer numbers as contacts first, then they'll appear in your Broadcast List.</p>
       </div>
     </div>
+  )
+}
+
+// ============ ADMIN BRANDS ============
+export function AdminBrands() {
+  const [brands, setBrands] = useState<any[]>([])
+  const [categories, setCategories] = useState<any[]>([])
+  const [requests, setRequests] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
+  const [showForm, setShowForm] = useState(false)
+  const [editBrand, setEditBrand] = useState<any>(null)
+  const [form, setForm] = useState({ name: '', logoUrl: '', subcategoryIds: [] as number[] })
+  const [tab, setTab] = useState<'brands' | 'requests'>('brands')
+  const [rejectNote, setRejectNote] = useState('')
+  const [rejectModal, setRejectModal] = useState<any>(null)
+
+  const loadBrands = () => {
+    setLoading(true)
+    Promise.all([
+      api.get('/brands'),
+      api.get('/categories'),
+      api.get('/brands/requests'),
+    ]).then(([b, c, r]) => {
+      setBrands(b.data.brands || [])
+      setCategories(c.data.categories || [])
+      setRequests(r.data.requests || [])
+    }).catch(() => {}).finally(() => setLoading(false))
+  }
+
+  useEffect(loadBrands, [])
+
+  const subcategories = categories.filter(c => c.parent_id)
+
+  const openAdd = () => {
+    setEditBrand(null)
+    setForm({ name: '', logoUrl: '', subcategoryIds: [] })
+    setShowForm(true)
+  }
+
+  const openEdit = async (brand: any) => {
+    setEditBrand(brand)
+    try {
+      const res = await api.get(`/brands/${brand.id}`)
+      const detail = res.data.brand
+      setForm({
+        name: detail.name,
+        logoUrl: detail.logo_url || '',
+        subcategoryIds: (detail.categories || []).map((c: any) => c.id),
+      })
+    } catch {
+      setForm({ name: brand.name, logoUrl: brand.logo_url || '', subcategoryIds: [] })
+    }
+    setShowForm(true)
+  }
+
+  const saveBrand = async () => {
+    if (!form.name.trim()) return toast.error('Brand name is required')
+    try {
+      if (editBrand) {
+        await api.put(`/brands/${editBrand.id}`, form)
+        toast.success('Brand updated!')
+      } else {
+        await api.post('/brands', form)
+        toast.success('Brand created!')
+      }
+      setShowForm(false)
+      loadBrands()
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || 'Error saving brand')
+    }
+  }
+
+  const deleteBrand = async (id: number) => {
+    if (!confirm('Delete this brand? Products using it will have their brand cleared.')) return
+    await api.delete(`/brands/${id}`).catch(() => {})
+    toast.success('Brand deleted')
+    loadBrands()
+  }
+
+  const approveRequest = async (id: number) => {
+    await api.put(`/brands/requests/${id}`, { status: 'approved' })
+    toast.success('Brand request approved')
+    loadBrands()
+  }
+
+  const rejectRequest = async () => {
+    if (!rejectModal) return
+    await api.put(`/brands/requests/${rejectModal.id}`, { status: 'rejected', adminNote: rejectNote })
+    toast.success('Brand request rejected')
+    setRejectModal(null)
+    setRejectNote('')
+    loadBrands()
+  }
+
+  const toggleSubcategory = (id: number) => {
+    setForm(prev => ({
+      ...prev,
+      subcategoryIds: prev.subcategoryIds.includes(id)
+        ? prev.subcategoryIds.filter(s => s !== id)
+        : [...prev.subcategoryIds, id],
+    }))
+  }
+
+  return (
+    <AdminLayout>
+      <div className="p-4 sm:p-6 lg:p-8">
+        <div className="flex items-center justify-between mb-6">
+          <h1 className="text-2xl font-bold text-gray-900">Brands</h1>
+          <button onClick={openAdd} className="btn-primary text-sm"><Plus size={14} /> Add Brand</button>
+        </div>
+
+        {/* Tabs */}
+        <div className="flex gap-2 mb-6">
+          <button onClick={() => setTab('brands')}
+            className={`px-4 py-1.5 rounded-xl text-sm font-medium transition-colors ${tab === 'brands' ? 'bg-primary-500 text-white' : 'bg-white border border-gray-200 text-gray-600 hover:bg-gray-50'}`}>
+            Brands
+          </button>
+          <button onClick={() => setTab('requests')}
+            className={`px-4 py-1.5 rounded-xl text-sm font-medium transition-colors ${tab === 'requests' ? 'bg-primary-500 text-white' : 'bg-white border border-gray-200 text-gray-600 hover:bg-gray-50'}`}>
+            Requests {requests.filter(r => r.status === 'pending').length > 0 && <span className="ml-1 bg-red-500 text-white text-xs w-5 h-5 rounded-full inline-flex items-center justify-center">{requests.filter(r => r.status === 'pending').length}</span>}
+          </button>
+        </div>
+
+        {loading ? <Skeleton className="h-64 rounded-2xl" /> : tab === 'brands' ? (
+          brands.length === 0 ? (
+            <EmptyState icon={<Tag size={48} />} title="No brands yet" description="Create brands to associate with products."
+              action={<button onClick={openAdd} className="btn-primary"><Plus size={16} /> Add Brand</button>} />
+          ) : (
+            <div className="card overflow-hidden">
+              <Table headers={['Brand', 'Logo', 'Subcategories', 'Products', 'Actions']}>
+                {brands.map(b => (
+                  <tr key={b.id}>
+                    <td className="table-cell px-4 font-medium text-gray-800">{b.name}</td>
+                    <td className="table-cell px-4">
+                      {b.logo_url ? <img src={b.logo_url} alt="" className="w-8 h-8 rounded object-cover" /> : <span className="text-xs text-gray-400">—</span>}
+                    </td>
+                    <td className="table-cell px-4 text-sm text-gray-500">{b.subcategory_count || '—'}</td>
+                    <td className="table-cell px-4 text-sm">{b.product_count || 0}</td>
+                    <td className="table-cell px-4">
+                      <div className="flex gap-2">
+                        <button onClick={() => openEdit(b)} className="p-1.5 hover:bg-gray-100 rounded-lg text-gray-500"><Edit2 size={14} /></button>
+                        <button onClick={() => deleteBrand(b.id)} className="p-1.5 hover:bg-red-50 rounded-lg text-red-500"><Trash2 size={14} /></button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </Table>
+            </div>
+          )
+        ) : (
+          /* Brand Requests Tab */
+          requests.length === 0 ? (
+            <EmptyState icon={<Tag size={48} />} title="No brand requests" description="Vendor brand requests will appear here." />
+          ) : (
+            <div className="card overflow-hidden">
+              <Table headers={['Brand Name', 'Vendor', 'Subcategory', 'Status', 'Actions']}>
+                {requests.map(r => (
+                  <tr key={r.id}>
+                    <td className="table-cell px-4 font-medium text-gray-800">{r.brand_name}</td>
+                    <td className="table-cell px-4 text-sm text-gray-500">{r.vendor_name}</td>
+                    <td className="table-cell px-4 text-sm text-gray-500">{r.category_name}</td>
+                    <td className="table-cell px-4"><StatusBadge status={r.status} /></td>
+                    <td className="table-cell px-4">
+                      {r.status === 'pending' && (
+                        <div className="flex gap-2">
+                          <button onClick={() => approveRequest(r.id)} className="p-1.5 hover:bg-green-50 rounded-lg text-green-600"><CheckCircle size={14} /></button>
+                          <button onClick={() => setRejectModal(r)} className="p-1.5 hover:bg-red-50 rounded-lg text-red-500"><XCircle size={14} /></button>
+                        </div>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </Table>
+            </div>
+          )
+        )}
+
+        {/* Brand Create/Edit Modal */}
+        <Modal open={showForm} onClose={() => setShowForm(false)} title={editBrand ? 'Edit Brand' : 'Create Brand'} size="sm">
+          <div className="space-y-4">
+            <div>
+              <label className="label">Brand Name *</label>
+              <input className="input" value={form.name} onChange={e => setForm(prev => ({ ...prev, name: e.target.value }))} placeholder="e.g. Samsung" />
+            </div>
+            <div>
+              <label className="label">Logo URL</label>
+              <input className="input" value={form.logoUrl} onChange={e => setForm(prev => ({ ...prev, logoUrl: e.target.value }))} placeholder="https://..." />
+            </div>
+            <div>
+              <label className="label">Subcategories</label>
+              <div className="max-h-48 overflow-y-auto border border-gray-200 rounded-lg p-2 space-y-1">
+                {subcategories.map(cat => (
+                  <label key={cat.id} className="flex items-center gap-2 py-1 px-2 hover:bg-gray-50 rounded cursor-pointer text-sm">
+                    <input type="checkbox" checked={form.subcategoryIds.includes(cat.id)}
+                      onChange={() => toggleSubcategory(cat.id)} className="rounded" />
+                    {cat.name}
+                  </label>
+                ))}
+              </div>
+            </div>
+            <div className="flex gap-3 pt-2">
+              <button onClick={() => setShowForm(false)} className="btn-secondary">Cancel</button>
+              <button onClick={saveBrand} className="btn-primary flex-1 justify-center">{editBrand ? 'Update' : 'Create'}</button>
+            </div>
+          </div>
+        </Modal>
+
+        {/* Reject Request Modal */}
+        <Modal open={!!rejectModal} onClose={() => setRejectModal(null)} title="Reject Brand Request" size="sm">
+          <p className="text-sm text-gray-500 mb-3">Rejecting: <strong>{rejectModal?.brand_name}</strong></p>
+          <label className="label">Admin Note (optional)</label>
+          <textarea className="input resize-none" rows={3} value={rejectNote} onChange={e => setRejectNote(e.target.value)} placeholder="Reason for rejection..." />
+          <div className="flex gap-3 mt-4">
+            <button onClick={() => setRejectModal(null)} className="btn-secondary">Cancel</button>
+            <button onClick={rejectRequest} className="btn-danger">Reject</button>
+          </div>
+        </Modal>
+      </div>
+    </AdminLayout>
   )
 }

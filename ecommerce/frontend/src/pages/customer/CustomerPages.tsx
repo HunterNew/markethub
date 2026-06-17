@@ -98,10 +98,18 @@ export function OrderConfirmationPage() {
 export function CustomerOrdersPage() {
   const [orders, setOrders] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
+  const [page, setPage] = useState(1)
+  const [pagination, setPagination] = useState({ total: 0, pages: 1 })
 
-  useEffect(() => {
-    api.get('/orders/my').then(r => setOrders(r.data.orders || [])).catch(() => {}).finally(() => setLoading(false))
-  }, [])
+  const fetchOrders = (p: number) => {
+    setLoading(true)
+    api.get(`/orders/my?page=${p}&limit=5`).then(r => {
+      setOrders(r.data.orders || [])
+      setPagination(r.data.pagination || { total: 0, pages: 1 })
+    }).catch(() => {}).finally(() => setLoading(false))
+  }
+
+  useEffect(() => { fetchOrders(page) }, [page])
 
   return (
     <CustomerLayout>
@@ -136,6 +144,12 @@ export function CustomerOrdersPage() {
                     <p className="text-xs text-gray-500 uppercase">Payment</p>
                     <p className="font-medium text-gray-700 capitalize">{order.payment_method === 'cod' ? 'Cash on Delivery' : order.payment_method}</p>
                   </div>
+                  {order.expected_delivery_date && order.status !== 'delivered' && order.status !== 'cancelled' && order.status !== 'returned' && (
+                    <div>
+                      <p className="text-xs text-gray-500 uppercase">Expected Delivery</p>
+                      <p className="font-medium text-green-700">{new Date(order.expected_delivery_date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', weekday: 'short' })}</p>
+                    </div>
+                  )}
                   <div className="ml-auto text-right">
                     <p className="text-xs text-gray-500">ORDER # {order.id}</p>
                     <Link to={`/customer/orders/${order.id}`} className="text-primary-600 hover:text-primary-700 text-xs font-medium hover:underline">
@@ -194,6 +208,35 @@ export function CustomerOrdersPage() {
                 </div>
               </div>
             ))}
+
+            {/* Pagination */}
+            {pagination.pages > 1 && (
+              <div className="flex items-center justify-center gap-2 pt-4">
+                <button
+                  onClick={() => setPage(p => Math.max(1, p - 1))}
+                  disabled={page === 1}
+                  className="px-3 py-1.5 text-sm border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed"
+                >
+                  Previous
+                </button>
+                {Array.from({ length: pagination.pages }, (_, i) => i + 1).map(p => (
+                  <button
+                    key={p}
+                    onClick={() => setPage(p)}
+                    className={`w-8 h-8 text-sm rounded-lg font-medium ${p === page ? 'bg-primary-500 text-white' : 'border border-gray-300 hover:bg-gray-50 text-gray-700'}`}
+                  >
+                    {p}
+                  </button>
+                ))}
+                <button
+                  onClick={() => setPage(p => Math.min(pagination.pages, p + 1))}
+                  disabled={page === pagination.pages}
+                  className="px-3 py-1.5 text-sm border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed"
+                >
+                  Next
+                </button>
+              </div>
+            )}
           </div>
         )}
       </div>
@@ -285,164 +328,228 @@ export function CustomerOrderDetailPage() {
   return (
     <CustomerLayout>
       <div className="p-4 sm:p-6 lg:p-8">
-        <Link to="/customer/orders" className="text-sm text-primary-500 hover:text-primary-700 flex items-center gap-1 mb-6">← Back to Orders</Link>
+        {/* Breadcrumb */}
+        <nav className="text-xs text-gray-400 mb-4 flex items-center gap-1">
+          <Link to="/customer" className="hover:text-primary-600">Your Account</Link>
+          <span>›</span>
+          <Link to="/customer/orders" className="hover:text-primary-600">Your Orders</Link>
+          <span>›</span>
+          <span className="text-gray-600">Order Details</span>
+        </nav>
+
         {loading ? (
           <div className="space-y-4">{Array(3).fill(0).map((_, i) => <Skeleton key={i} className="h-32 rounded-2xl" />)}</div>
         ) : !order ? (
           <p className="text-gray-500">Order not found</p>
         ) : (
-          <div className="space-y-6 max-w-3xl">
-            <div className="card p-6">
-              <div className="flex items-start justify-between mb-4">
-                <div>
-                  <h1 className="text-xl font-bold text-gray-900">Order #{order.id}</h1>
-                  <p className="text-sm text-gray-500 mt-1">{formatDateTime(order.created_at)}</p>
-                </div>
+          <div className="space-y-4 max-w-4xl">
+            {/* Header: Title + Order meta + Invoice */}
+            <div>
+              <div className="flex items-center justify-between">
+                <h1 className="text-xl font-bold text-gray-900">Order Details</h1>
                 <div className="flex items-center gap-3">
-                  <StatusBadge status={order.status} />
                   {order.status === 'confirmed' && (
                     <button onClick={cancelOrder} disabled={cancelling}
-                      className="btn-danger text-sm py-1.5 px-3">
-                      {cancelling ? '...' : <><XCircle size={14} /> Cancel</>}
+                      className="text-sm py-1.5 px-3 border border-red-300 text-red-600 hover:bg-red-50 rounded-lg font-medium flex items-center gap-1">
+                      {cancelling ? '...' : <><XCircle size={14} /> Cancel Order</>}
                     </button>
                   )}
-                  {order.status === 'delivered' && order.returnPolicyEnabled && !order.returnRequest && (
-                    <button onClick={() => setShowReturnForm(true)}
-                      className="text-sm py-1.5 px-3 bg-amber-50 text-amber-700 hover:bg-amber-100 rounded-lg font-medium flex items-center gap-1 transition-colors">
-                      <RefreshCw size={14} /> Request Return
-                    </button>
-                  )}
-                  {['delivered', 'return_requested', 'returned'].includes(order.status) && (
+                  {order.status !== 'cancelled' && (
                     <Link to={`/invoice/${order.id}`} target="_blank"
-                      className="text-sm py-1.5 px-3 bg-blue-50 text-blue-700 hover:bg-blue-100 rounded-lg font-medium flex items-center gap-1 transition-colors">
-                      Invoice
+                      className="text-sm text-primary-600 hover:text-primary-700 font-medium hover:underline">
+                      Invoice ↓
                     </Link>
                   )}
                 </div>
               </div>
+              <p className="text-sm text-gray-500 mt-1">
+                Order placed {new Date(order.created_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' })}
+                <span className="mx-2">|</span>
+                Order #{order.id}
+              </p>
+            </div>
 
-              {/* Items */}
-              <div className="space-y-3">
+            {/* Ship to / Payment / Order Summary - 3 columns */}
+            <div className="border border-gray-200 rounded-lg bg-white">
+              <div className="grid grid-cols-1 md:grid-cols-3 divide-y md:divide-y-0 md:divide-x divide-gray-200 p-4 sm:p-5">
+                {/* Ship to */}
+                <div className="pb-4 md:pb-0 md:pr-5">
+                  <p className="text-xs font-bold text-gray-900 uppercase mb-2">Ship to</p>
+                  <p className="text-sm font-medium text-gray-800">{order.shipping_address?.name}</p>
+                  <p className="text-sm text-gray-600">{order.shipping_address?.address}</p>
+                  <p className="text-sm text-gray-600">{order.shipping_address?.city}, {order.shipping_address?.state} - {order.shipping_address?.pincode}</p>
+                  <p className="text-sm text-gray-600">Ph: {order.shipping_address?.phone}</p>
+                </div>
+                {/* Payment */}
+                <div className="py-4 md:py-0 md:px-5">
+                  <p className="text-xs font-bold text-gray-900 uppercase mb-2">Payment method</p>
+                  <p className="text-sm text-gray-700 capitalize">{order.payment_method === 'cod' ? 'Cash on Delivery' : order.payment_method === 'razorpay' ? 'UPI / Net Banking' : 'Card'}</p>
+                  <p className="text-xs text-gray-400 mt-1 capitalize">Status: {order.payment_status}</p>
+                </div>
+                {/* Order Summary */}
+                <div className="pt-4 md:pt-0 md:pl-5">
+                  <p className="text-xs font-bold text-gray-900 uppercase mb-2">Order Summary</p>
+                  <div className="space-y-1 text-sm">
+                    <div className="flex justify-between"><span className="text-gray-500">Item(s) Subtotal:</span><span className="text-gray-800">{formatCurrency(order.subtotal)}</span></div>
+                    {Number(order.delivery_charge) > 0 && <div className="flex justify-between"><span className="text-gray-500">Shipping:</span><span className="text-gray-800">{formatCurrency(order.delivery_charge)}</span></div>}
+                    {Number(order.tax_amount) > 0 && <div className="flex justify-between"><span className="text-gray-500">Tax:</span><span className="text-gray-800">{formatCurrency(order.tax_amount)}</span></div>}
+                    {Number(order.discount_amount) > 0 && <div className="flex justify-between"><span className="text-gray-500">Discount{order.coupon_code ? ` (${order.coupon_code})` : ''}:</span><span className="text-green-600">-{formatCurrency(order.discount_amount)}</span></div>}
+                    <div className="flex justify-between font-bold border-t border-gray-100 pt-1 mt-1"><span className="text-gray-900">Grand Total:</span><span className="text-gray-900">{formatCurrency(order.total)}</span></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Horizontal Order Timeline */}
+            <div className="border border-gray-200 rounded-lg bg-white p-4 sm:p-5">
+              {(() => {
+                const steps = [
+                  { key: 'confirmed', label: 'Order Confirmed' },
+                  { key: 'shipped', label: 'Shipped' },
+                  { key: 'delivered', label: 'Delivered' },
+                ]
+                const statusOrder = ['confirmed', 'shipped', 'delivered']
+                const currentIdx = statusOrder.indexOf(order.status)
+                const isCancelled = order.status === 'cancelled'
+                const isReturned = ['return_requested', 'returned'].includes(order.status)
+
+                return (
+                  <div>
+                    {isCancelled ? (
+                      <div className="flex items-center gap-2 text-red-600">
+                        <XCircle size={18} />
+                        <span className="font-medium">Order Cancelled</span>
+                        {order.statusLog?.length > 0 && (
+                          <span className="text-xs text-gray-400 ml-2">
+                            on {formatDateTime(order.statusLog.find((l: any) => l.to_status === 'cancelled')?.created_at || order.updated_at)}
+                          </span>
+                        )}
+                      </div>
+                    ) : (
+                      <>
+                        {/* Timeline row: circles + connecting lines */}
+                        <div className="flex items-center">
+                          {steps.map((step, i) => {
+                            const isComplete = currentIdx > i || isReturned
+                            const isCurrent = currentIdx === i && !isReturned
+                            return (
+                              <React.Fragment key={step.key}>
+                                {/* Connecting line before (except first) */}
+                                {i > 0 && (
+                                  <div className={`flex-1 h-0.5 ${currentIdx >= i || isReturned ? 'bg-green-500' : 'bg-gray-200'}`} />
+                                )}
+                                {/* Circle */}
+                                <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0
+                                  ${isComplete ? 'bg-green-500 text-white' : isCurrent ? 'bg-green-500 text-white' : 'bg-gray-200 text-gray-400'}`}>
+                                  {isComplete || isCurrent ? '✓' : i + 1}
+                                </div>
+                              </React.Fragment>
+                            )
+                          })}
+                        </div>
+                        {/* Labels row below */}
+                        <div className="flex justify-between mt-2">
+                          {steps.map((step, i) => {
+                            const isComplete = currentIdx > i || isReturned
+                            const isCurrent = currentIdx === i && !isReturned
+                            return (
+                              <div key={step.key} className={`text-center ${i === 0 ? 'text-left' : i === steps.length - 1 ? 'text-right' : 'text-center'}`} style={{ width: '33%' }}>
+                                <p className={`text-xs ${isComplete || isCurrent ? 'text-gray-800 font-medium' : 'text-gray-400'}`}>{step.label}</p>
+                                {order.statusLog?.find((l: any) => l.to_status === step.key) && (
+                                  <p className="text-[10px] text-gray-400">
+                                    {new Date(order.statusLog.find((l: any) => l.to_status === step.key).created_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}
+                                  </p>
+                                )}
+                                {step.key === 'delivered' && order.expected_delivery_date && !isComplete && (
+                                  <p className="text-[10px] text-green-600">
+                                    by {new Date(order.expected_delivery_date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}
+                                  </p>
+                                )}
+                              </div>
+                            )
+                          })}
+                        </div>
+                        {isReturned && (
+                          <div className="flex items-center gap-2 text-amber-600 mt-3 pt-3 border-t border-gray-100">
+                            <RefreshCw size={14} />
+                            <span className="text-sm font-medium">
+                              {order.status === 'returned' ? 'Return Completed' : 'Return Requested'}
+                            </span>
+                          </div>
+                        )}
+                      </>
+                    )}
+                  </div>
+                )
+              })()}
+            </div>
+
+            {/* Items */}
+            <div className="border border-gray-200 rounded-lg bg-white p-4 sm:p-5">
+              <div className="space-y-4">
                 {order.items?.map((item: any) => (
-                  <div key={item.id} className="flex items-center gap-3 py-2 border-b border-gray-50 last:border-0">
-                    <div className="w-14 h-14 rounded-xl overflow-hidden bg-gray-50 border border-gray-100 flex-shrink-0">
-                      {item.product_image && <img src={item.product_image} alt="" className="w-full h-full object-cover" />}
-                    </div>
+                  <div key={item.id} className="flex items-start gap-4 pb-4 border-b border-gray-100 last:border-0 last:pb-0">
+                    <Link to={`/products/${item.product_id}`} className="w-16 h-16 rounded-lg overflow-hidden bg-gray-50 border border-gray-100 flex-shrink-0">
+                      {item.product_image ? <img src={item.product_image} alt="" className="w-full h-full object-cover" /> : <div className="w-full h-full" />}
+                    </Link>
                     <div className="flex-1">
-                      <p className="font-medium text-gray-800 text-sm">{item.product_name}</p>
+                      <Link to={`/products/${item.product_id}`} className="text-sm text-primary-700 hover:text-primary-800 hover:underline font-medium">
+                        {item.product_name}
+                      </Link>
                       {item.variant_snapshot && (() => {
                         const snapshot = typeof item.variant_snapshot === 'string' ? JSON.parse(item.variant_snapshot) : item.variant_snapshot;
                         const options = Object.entries(snapshot).filter(([key]) => key !== 'price').map(([key, value]) => `${key}: ${value}`).join(', ');
-                        return options ? <p className="text-xs text-primary-500 mt-0.5">{options}</p> : null;
+                        return options ? <p className="text-xs text-gray-500 mt-0.5">{options}</p> : null;
                       })()}
                       <p className="text-xs text-gray-400 mt-0.5">Qty: {item.quantity} × {formatCurrency(item.unit_price)}</p>
-                      {item.tax_amount > 0 && <p className="text-xs text-gray-400">Tax: {formatCurrency(item.tax_amount)}</p>}
+                      <p className="text-sm font-semibold text-gray-900 mt-1">{formatCurrency(item.unit_price * item.quantity)}</p>
                     </div>
-                    <div className="flex items-center gap-2">
-                      <span className="font-bold text-gray-900">{formatCurrency(item.unit_price * item.quantity)}</span>
+                    <div className="flex flex-col gap-2 flex-shrink-0">
+                      <Link to={`/products/${item.product_id}`}
+                        className="text-xs py-1.5 px-3 border border-gray-300 rounded-lg hover:bg-gray-50 text-gray-700 font-medium text-center">
+                        View product
+                      </Link>
                       <button onClick={() => { setReviewItem(item); setReviewForm({ rating: 5, title: '', comment: '' }) }}
-                        className="text-xs text-primary-500 hover:text-primary-700 font-medium flex items-center gap-0.5">
-                        <Star size={10} /> Review
+                        className="text-xs py-1.5 px-3 border border-gray-300 rounded-lg hover:bg-gray-50 text-gray-700 font-medium text-center">
+                        Write a review
                       </button>
                     </div>
                   </div>
                 ))}
               </div>
-
-              {/* Totals */}
-              <div className="mt-4 pt-4 border-t border-gray-100 space-y-2 text-sm">
-                <div className="flex justify-between"><span className="text-gray-500">Subtotal</span><span>{formatCurrency(order.subtotal)}</span></div>
-                {order.tax_amount > 0 && <div className="flex justify-between"><span className="text-gray-500">Tax</span><span>{formatCurrency(order.tax_amount)}</span></div>}
-                {Number(order.discount_amount) > 0 && <div className="flex justify-between text-green-600"><span>Discount {order.coupon_code && <span className="text-xs">({order.coupon_code})</span>}</span><span>-{formatCurrency(order.discount_amount)}</span></div>}
-                <div className="flex justify-between font-bold text-base border-t border-gray-100 pt-2">
-                  <span>Total</span><span className="text-primary-600">{formatCurrency(order.total)}</span>
-                </div>
-              </div>
             </div>
 
-            {/* Delivery */}
-            <div className="card p-6">
-              <h3 className="font-bold text-gray-900 mb-3 flex items-center gap-2"><Truck size={16} className="text-primary-500" /> Delivery Details</h3>
-              <div className="bg-gray-50 rounded-xl p-4 text-sm text-gray-600">
-                <p className="font-semibold text-gray-800">{order.shipping_address?.name}</p>
-                <p>{order.shipping_address?.phone}</p>
-                <p>{order.shipping_address?.address}</p>
-                <p>{order.shipping_address?.city}, {order.shipping_address?.state} - {order.shipping_address?.pincode}</p>
-              </div>
-              <div className="mt-3 flex items-center gap-3 text-sm">
-                <span className="text-gray-500">Payment:</span>
-                <StatusBadge status={order.payment_status} />
-                <span className="text-gray-600 capitalize">{order.payment_method === 'cod' ? 'Cash on Delivery' : order.payment_method}</span>
-              </div>
-            </div>
-
-            {/* Status Log */}
-            {order.statusLog?.length > 0 && (
-              <div className="card p-6">
-                <h3 className="font-bold text-gray-900 mb-4 flex items-center gap-2"><Clock size={16} className="text-primary-500" /> Order Timeline</h3>
-                <div className="relative">
-                  <div className="absolute left-3 top-0 bottom-0 w-0.5 bg-gray-100" />
-                  <div className="space-y-4">
-                    {order.statusLog.map((log: any, i: number) => (
-                      <div key={log.id} className="flex items-start gap-4 relative">
-                        <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center flex-shrink-0 z-10 ${i === 0 ? 'bg-primary-500 border-primary-500' : 'bg-white border-gray-200'}`}>
-                          <div className={`w-2 h-2 rounded-full ${i === 0 ? 'bg-white' : 'bg-gray-300'}`} />
-                        </div>
-                        <div>
-                          <p className="text-sm font-semibold text-gray-800 capitalize">{log.to_status.replace('_', ' ')}</p>
-                          <p className="text-xs text-gray-400">{formatDateTime(log.created_at)}</p>
-                          {log.note && <p className="text-xs text-gray-500 mt-0.5">"{log.note}"</p>}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
+            {/* Return actions */}
+            {order.status === 'delivered' && order.returnPolicyEnabled && !order.returnRequest && (
+              <div className="border border-gray-200 rounded-lg bg-white p-4 sm:p-5">
+                <button onClick={() => setShowReturnForm(true)}
+                  className="text-sm py-2 px-4 bg-amber-50 text-amber-700 hover:bg-amber-100 rounded-lg font-medium flex items-center gap-1 transition-colors">
+                  <RefreshCw size={14} /> Request Return
+                </button>
               </div>
             )}
-
             {/* Return Request Status */}
             {order.returnRequest && (
-              <div className="card p-6">
-                <h3 className="font-bold text-gray-900 mb-3 flex items-center gap-2"><RefreshCw size={16} className="text-amber-500" /> Return Request</h3>
-                <div className="bg-gray-50 rounded-xl p-4 space-y-2">
+              <div className="border border-gray-200 rounded-lg bg-white p-4 sm:p-5">
+                <h3 className="font-bold text-gray-900 mb-3 flex items-center gap-2"><RefreshCw size={14} className="text-amber-500" /> Return Request</h3>
+                <div className="bg-gray-50 rounded-lg p-3 space-y-2 text-sm">
                   <div className="flex items-center justify-between">
-                    <span className="text-sm text-gray-500">Status</span>
+                    <span className="text-gray-500">Status</span>
                     <StatusBadge status={order.returnRequest.status === 'refund_pending' ? 'pending' : order.returnRequest.status} />
                   </div>
-                  {order.returnRequest.status === 'refund_pending' && (
-                    <p className="text-xs text-amber-600 bg-amber-50 rounded-lg p-2">Vendor approved your return. Refund is being processed by admin. Amount will be credited within 3-5 business days.</p>
-                  )}
-                  {order.returnRequest.status === 'refunded' && (
-                    <p className="text-xs text-green-600 bg-green-50 rounded-lg p-2">Refund of {formatCurrency(order.returnRequest.refund_amount || order.total)} has been processed. Amount will be credited within 3-5 business days.</p>
-                  )}
                   <div className="flex items-start justify-between">
-                    <span className="text-sm text-gray-500">Reason</span>
-                    <span className="text-sm text-gray-700 text-right max-w-[60%]">{order.returnRequest.reason}</span>
+                    <span className="text-gray-500">Reason</span>
+                    <span className="text-gray-700 text-right max-w-[60%]">{order.returnRequest.reason}</span>
                   </div>
-                  {order.returnRequest.proof_image_url && (
-                    <div>
-                      <span className="text-sm text-gray-500">Proof</span>
-                      <div className="mt-1 rounded-lg overflow-hidden h-24 w-32">
-                        <img src={order.returnRequest.proof_image_url} alt="Proof" className="w-full h-full object-cover" />
-                      </div>
-                    </div>
-                  )}
                   {order.returnRequest.vendor_note && (
                     <div className="flex items-start justify-between">
-                      <span className="text-sm text-gray-500">Vendor Note</span>
-                      <span className="text-sm text-gray-700 text-right max-w-[60%]">{order.returnRequest.vendor_note}</span>
+                      <span className="text-gray-500">Vendor Note</span>
+                      <span className="text-gray-700 text-right max-w-[60%]">{order.returnRequest.vendor_note}</span>
                     </div>
                   )}
-                  {order.returnRequest.admin_note && (
-                    <div className="flex items-start justify-between">
-                      <span className="text-sm text-gray-500">Admin Note</span>
-                      <span className="text-sm text-gray-700 text-right max-w-[60%]">{order.returnRequest.admin_note}</span>
-                    </div>
+                  {order.returnRequest.status === 'refunded' && (
+                    <p className="text-xs text-green-600 bg-green-50 rounded-lg p-2">Refund of {formatCurrency(order.returnRequest.refund_amount || order.total)} processed.</p>
                   )}
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm text-gray-500">Requested</span>
-                    <span className="text-xs text-gray-400">{formatDateTime(order.returnRequest.created_at)}</span>
-                  </div>
                 </div>
               </div>
             )}

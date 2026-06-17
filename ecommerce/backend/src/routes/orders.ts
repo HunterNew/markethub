@@ -152,14 +152,52 @@ router.post('/', authenticate, requireRole('customer'), async (req: AuthRequest,
       }
     }
 
-    const total = subtotal + taxTotal - discountAmount;
+    // Calculate delivery charge
+    let deliveryCharge = 0;
+    const vendorDeliveryMap: Record<number, { type: string; perProduct: number; perKg: number; freeAbove: number; subtotal: number; deliveryDays: number }> = {};
+    for (const item of orderItemsData) {
+      const vid = item.vendor_id;
+      if (!vendorDeliveryMap[vid]) {
+        const [vInfo] = await conn.query('SELECT delivery_type, delivery_charge_per_product, delivery_charge_per_kg, free_delivery_above, delivery_days FROM vendors WHERE id = ?', [vid]) as any[];
+        const v = vInfo[0] || {};
+        vendorDeliveryMap[vid] = { type: v.delivery_type || 'per_product', perProduct: Number(v.delivery_charge_per_product) || 0, perKg: Number(v.delivery_charge_per_kg) || 0, freeAbove: Number(v.free_delivery_above) || 0, subtotal: 0, deliveryDays: Number(v.delivery_days) || 5 };
+      }
+      vendorDeliveryMap[vid].subtotal += Number(item.unit_price) * item.quantity;
+    }
+    for (const item of orderItemsData) {
+      const vd = vendorDeliveryMap[item.vendor_id];
+      if (vd.freeAbove > 0 && vd.subtotal >= vd.freeAbove) continue;
+
+      // Check product-level delivery settings
+      const [pDelivery] = await conn.query('SELECT delivery_type, delivery_charge, weight_kg FROM products WHERE id = ?', [item.product_id]) as any[];
+      const pd = pDelivery[0] || {};
+      const productDeliveryType = pd.delivery_type && pd.delivery_type !== 'vendor_default' ? pd.delivery_type : vd.type;
+      const productDeliveryCharge = pd.delivery_type && pd.delivery_type !== 'vendor_default' ? Number(pd.delivery_charge) || 0 : null;
+
+      if (productDeliveryType === 'per_kg') {
+        const weight = Number(pd.weight_kg) || 0.5;
+        const chargePerKg = productDeliveryCharge !== null ? productDeliveryCharge : vd.perKg;
+        deliveryCharge += weight * item.quantity * chargePerKg;
+      } else {
+        const chargePerProduct = productDeliveryCharge !== null ? productDeliveryCharge : vd.perProduct;
+        deliveryCharge += item.quantity * chargePerProduct;
+      }
+    }
+
+    const total = subtotal + taxTotal - discountAmount + deliveryCharge;
     const paymentStatus = paymentMethod === 'cod' ? 'pending' : 'paid';
 
+    // Calculate expected delivery date from the slowest vendor
+    const maxDeliveryDays = Math.max(...Object.values(vendorDeliveryMap).map(v => v.deliveryDays), 5);
+    const expectedDeliveryDate = new Date();
+    expectedDeliveryDate.setDate(expectedDeliveryDate.getDate() + maxDeliveryDays);
+    const expectedDeliveryStr = expectedDeliveryDate.toISOString().split('T')[0];
+
     const [orderResult] = await conn.query(
-      `INSERT INTO orders (user_id, status, payment_method, payment_status, subtotal, tax_amount, discount_amount, coupon_code, total, shipping_address, stripe_payment_intent_id, razorpay_order_id)
-       VALUES (?, 'confirmed', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [req.user!.userId, paymentMethod, paymentStatus, subtotal, taxTotal, discountAmount, couponCode || null, total,
-       JSON.stringify(shippingAddress), paymentIntentId || null, razorpayOrderId || null]
+      `INSERT INTO orders (user_id, status, payment_method, payment_status, subtotal, tax_amount, discount_amount, coupon_code, delivery_charge, total, shipping_address, stripe_payment_intent_id, razorpay_order_id, expected_delivery_date)
+       VALUES (?, 'confirmed', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [req.user!.userId, paymentMethod, paymentStatus, subtotal, taxTotal, discountAmount, couponCode || null, deliveryCharge, total,
+       JSON.stringify(shippingAddress), paymentIntentId || null, razorpayOrderId || null, expectedDeliveryStr]
     ) as any[];
 
     const orderId = orderResult.insertId;
@@ -251,14 +289,25 @@ router.post('/', authenticate, requireRole('customer'), async (req: AuthRequest,
 router.get('/my', authenticate, async (req: AuthRequest, res: Response) => {
   const conn = await pool.getConnection();
   try {
+    const page = Math.max(1, parseInt(req.query.page as string) || 1);
+    const limit = Math.min(50, Math.max(1, parseInt(req.query.limit as string) || 5));
+    const offset = (page - 1) * limit;
+
+    const [countResult] = await conn.query(
+      'SELECT COUNT(*) as total FROM orders WHERE user_id = ?',
+      [req.user!.userId]
+    ) as any[];
+    const total = countResult[0].total;
+
     const [orders] = await conn.query(
       `SELECT o.*, COUNT(oi.id) as item_count
       FROM orders o
       LEFT JOIN order_items oi ON oi.order_id = o.id
       WHERE o.user_id = ?
       GROUP BY o.id
-      ORDER BY o.created_at DESC`,
-      [req.user!.userId]
+      ORDER BY o.created_at DESC
+      LIMIT ? OFFSET ?`,
+      [req.user!.userId, limit, offset]
     ) as any[];
 
     // Fetch items for each order
@@ -283,7 +332,11 @@ router.get('/my', authenticate, async (req: AuthRequest, res: Response) => {
       items: itemsMap[o.id] || []
     }));
 
-    return res.json({ status: 'success', orders: ordersWithItems });
+    return res.json({
+      status: 'success',
+      orders: ordersWithItems,
+      pagination: { total, page, limit, pages: Math.ceil(total / limit) }
+    });
   } finally {
     conn.release();
   }

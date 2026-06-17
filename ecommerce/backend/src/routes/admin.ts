@@ -61,6 +61,21 @@ router.patch('/vendors/:id/commission', authenticate, requireRole('admin'), asyn
   }
 });
 
+// Enable/Disable vendor
+router.patch('/vendors/:id/toggle-status', authenticate, requireRole('admin'), async (req: AuthRequest, res: Response) => {
+  const conn = await pool.getConnection();
+  try {
+    const [rows] = await conn.query('SELECT status FROM vendors WHERE id = ?', [req.params.id]) as any[];
+    if ((rows as any[]).length === 0) return res.status(404).json({ status: 'error', message: 'Vendor not found', errors: [] });
+    const current = (rows as any[])[0].status;
+    const newStatus = current === 'disabled' ? 'approved' : 'disabled';
+    await conn.query('UPDATE vendors SET status = ? WHERE id = ?', [newStatus, req.params.id]);
+    return res.json({ status: 'success', message: `Vendor ${newStatus === 'disabled' ? 'disabled' : 'enabled'} successfully.`, newStatus });
+  } finally {
+    conn.release();
+  }
+});
+
 // ============ PRODUCTS ============
 router.get('/products', authenticate, requireRole('admin'), async (req: AuthRequest, res: Response) => {
   const { status = 'pending_approval', page = 1 } = req.query;
@@ -581,6 +596,46 @@ router.post('/notifications/send-email', authenticate, requireRole('admin'), asy
   } finally {
     conn.release();
   }
+});
+
+// ============ CATEGORY REQUESTS ============
+router.get('/category-requests', authenticate, requireRole('admin'), async (req: AuthRequest, res: Response) => {
+  const conn = await pool.getConnection();
+  try {
+    const [requests] = await conn.query(
+      `SELECT cr.*, v.store_name as vendor_name
+       FROM category_requests cr
+       JOIN vendors v ON v.id = cr.vendor_id
+       ORDER BY FIELD(cr.status, 'pending', 'approved', 'rejected'), cr.created_at DESC`
+    ) as any[];
+    return res.json({ status: 'success', requests });
+  } finally { conn.release(); }
+});
+
+router.put('/category-requests/:id', authenticate, requireRole('admin'), async (req: AuthRequest, res: Response) => {
+  const { status, adminNote } = req.body;
+  if (!['approved', 'rejected'].includes(status)) {
+    return res.status(400).json({ status: 'error', message: 'Status must be approved or rejected.', errors: [] });
+  }
+  const conn = await pool.getConnection();
+  try {
+    const [requests] = await conn.query('SELECT * FROM category_requests WHERE id = ?', [req.params.id]) as any[];
+    if (requests.length === 0) return res.status(404).json({ status: 'error', message: 'Request not found', errors: [] });
+
+    await conn.query('UPDATE category_requests SET status = ?, admin_note = ? WHERE id = ?', [status, adminNote || null, req.params.id]);
+
+    // If approved, create the category
+    if (status === 'approved') {
+      const r = requests[0];
+      const slug = r.name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
+      await conn.query(
+        'INSERT IGNORE INTO categories (name, slug, description) VALUES (?, ?, ?)',
+        [r.name, slug, r.description || null]
+      );
+    }
+
+    return res.json({ status: 'success', message: `Category request ${status}.` });
+  } finally { conn.release(); }
 });
 
 export default router;

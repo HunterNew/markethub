@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { Plus, Edit, Trash2, Package, ShoppingBag, DollarSign, Tag, Upload, Download, CheckCircle, XCircle, Zap, Eye } from 'lucide-react'
+import { Plus, Edit, Trash2, Package, ShoppingBag, DollarSign, Tag, Upload, Download, CheckCircle, XCircle, Zap, Eye, EyeOff } from 'lucide-react'
 import api from '../../api/client'
 import { useAuth } from '../../context/AuthContext'
 import { VendorLayout } from '../../components/layout/DashboardLayout'
@@ -8,24 +8,28 @@ import { Modal, StatusBadge, Table, Skeleton, ConfirmDialog, StatCard, EmptyStat
 import { formatCurrency, formatDateTime, getStatusLabel } from '../../utils/helpers'
 import toast from '../../components/ui/Toast'
 import VariantConfigPanel, { VariantConfigPanelRef } from '../../components/vendor/VariantConfigPanel'
+import CategoryPicker from '../../components/ui/CategoryPicker'
 
 // ============ VENDOR DASHBOARD HOME ============
 export function VendorDashboard() {
   const { user } = useAuth()
   const [stats, setStats] = useState<any>(null)
+  const [vendorProfile, setVendorProfile] = useState<any>(null)
 
   useEffect(() => {
     Promise.all([
       api.get('/vendor/products/mine').catch(() => ({ data: { products: [] } })),
       api.get('/orders/vendor').catch(() => ({ data: { orders: [] } })),
       api.get('/vendor/withdrawals').catch(() => ({ data: { availableBalance: 0 } })),
-    ]).then(([p, o, w]) => {
+      api.get('/vendor/profile').catch(() => ({ data: { vendor: null } })),
+    ]).then(([p, o, w, v]) => {
       setStats({
         products: p.data.products?.length || 0,
         orders: o.data.orders?.length || 0,
         balance: w.data.availableBalance || 0,
         pending: o.data.orders?.filter((x: any) => x.status === 'confirmed').length || 0,
       })
+      setVendorProfile(v.data.vendor || null)
     })
   }, [])
 
@@ -50,9 +54,33 @@ export function VendorDashboard() {
     <VendorLayout>
       <div className="p-4 sm:p-6 lg:p-8">
         {/* Welcome Banner */}
-        <div className="bg-gradient-to-r from-gray-900 to-gray-800 rounded-2xl p-5 sm:p-8 text-white mb-6">
-          <h1 className="text-xl sm:text-2xl font-bold mb-1">Welcome back, {user?.firstName}! 🚀</h1>
-          <p className="text-white/70 text-sm">Here's your store overview.</p>
+        <div className="relative rounded-2xl overflow-hidden mb-6">
+          {/* Banner background */}
+          {vendorProfile?.banner_url ? (
+            <div className="absolute inset-0">
+              <img src={vendorProfile.banner_url} alt="" className="w-full h-full object-cover" />
+              <div className="absolute inset-0 bg-black/60" />
+            </div>
+          ) : (
+            <div className="absolute inset-0 bg-gradient-to-r from-gray-900 via-gray-800 to-gray-900" />
+          )}
+          {/* Decoration */}
+          <div className="absolute top-0 right-0 w-64 h-64 bg-primary-500/10 rounded-full -translate-y-1/2 translate-x-1/3" />
+          <div className="absolute bottom-0 left-20 w-32 h-32 bg-primary-500/5 rounded-full translate-y-1/2" />
+          {/* Content */}
+          <div className="relative p-5 sm:p-8 flex items-center gap-4">
+            {vendorProfile?.logo_url ? (
+              <img src={vendorProfile.logo_url} alt={vendorProfile.store_name} className="w-14 h-14 sm:w-16 sm:h-16 rounded-xl object-cover border-2 border-white/20" />
+            ) : (
+              <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-xl bg-primary-500/20 border-2 border-white/20 flex items-center justify-center text-2xl font-bold text-primary-300">
+                {user?.firstName?.[0] || 'V'}
+              </div>
+            )}
+            <div>
+              <h1 className="text-xl sm:text-2xl font-bold text-white mb-0.5">Welcome back, {user?.firstName}! 🚀</h1>
+              <p className="text-white/60 text-sm">{vendorProfile?.store_name || user?.vendor?.storeName || 'Your Store'} — Here's your store overview</p>
+            </div>
+          </div>
         </div>
 
         {/* Stats */}
@@ -111,8 +139,19 @@ export function VendorProducts() {
   const [importResult, setImportResult] = useState<any>(null)
   const [importLoading, setImportLoading] = useState(false)
   const [csvData, setCsvData] = useState('')
-  const [form, setForm] = useState({ name:'', description:'', price:'', categoryId:'', stockQuantity:'', images:[''], wholesaleEnabled:false, wholesalePrice:'', wholesaleMinQty:'' })
+  const [form, setForm] = useState({ name:'', description:'', price:'', mrp:'', categoryId:'', stockQuantity:'', images:[''], wholesaleEnabled:false, wholesalePrice:'', wholesaleMinQty:'', weightKg:'', deliveryType:'vendor_default', deliveryCharge:'', brandId:'' })
   const variantPanelRef = useRef<VariantConfigPanelRef>(null)
+  const [showCategoryRequest, setShowCategoryRequest] = useState(false)
+  const [catReqForm, setCatReqForm] = useState({ name: '', description: '', parentId: '' })
+  const [brands, setBrands] = useState<any[]>([])
+  const [showBrandRequest, setShowBrandRequest] = useState(false)
+  const [brandReqForm, setBrandReqForm] = useState({ brandName: '', categoryId: '' })
+  const [myBrandRequests, setMyBrandRequests] = useState<any[]>([])
+
+  const loadBrands = (catId: string) => {
+    if (!catId) { setBrands([]); return }
+    api.get(`/brands?subcategoryId=${catId}`).then(r => setBrands(r.data.brands || [])).catch(() => setBrands([]))
+  }
 
   const load = () => {
     setLoading(true)
@@ -129,7 +168,7 @@ export function VendorProducts() {
 
   const setField = (k: string, v: any) => setForm(prev => ({ ...prev, [k]: v }))
 
-  const openAdd = () => { setEditProduct(null); setForm({ name:'', description:'', price:'', categoryId:'', stockQuantity:'', images:[''], wholesaleEnabled:false, wholesalePrice:'', wholesaleMinQty:'' }); setShowForm(true) }
+  const openAdd = () => { setEditProduct(null); setForm({ name:'', description:'', price:'', mrp:'', categoryId:'', stockQuantity:'', images:[''], wholesaleEnabled:false, wholesalePrice:'', wholesaleMinQty:'', weightKg:'', deliveryType:'vendor_default', deliveryCharge:'', brandId:'' }); setBrands([]); setShowForm(true) }
   const openEdit = async (p: any) => {
     setEditProduct(p)
     // Fetch full product detail to get all images
@@ -141,13 +180,14 @@ export function VendorProducts() {
         imgs = detail.images.map((img: any) => img.image_url)
       }
     } catch { /* use empty */ }
-    setForm({ name: p.name, description: p.description || '', price: String(p.price), categoryId: String(p.category_id), stockQuantity: String(p.stock_quantity), images: imgs, wholesaleEnabled: !!p.wholesale_enabled, wholesalePrice: String(p.wholesale_price || ''), wholesaleMinQty: String(p.wholesale_min_qty || '') })
+    setForm({ name: p.name, description: p.description || '', price: String(p.price), mrp: String(p.mrp || ''), categoryId: String(p.category_id), stockQuantity: String(p.stock_quantity), images: imgs, wholesaleEnabled: !!p.wholesale_enabled, wholesalePrice: String(p.wholesale_price || ''), wholesaleMinQty: String(p.wholesale_min_qty || ''), weightKg: String(p.weight_kg || ''), deliveryType: p.delivery_type || 'vendor_default', deliveryCharge: String(p.delivery_charge || ''), brandId: String(p.brand_id || '') })
+    loadBrands(String(p.category_id))
     setShowForm(true)
   }
 
   const saveProduct = async () => {
     try {
-      const data = { ...form, price: parseFloat(form.price), categoryId: parseInt(form.categoryId), stockQuantity: parseInt(form.stockQuantity), wholesalePrice: parseFloat(form.wholesalePrice), wholesaleMinQty: parseInt(form.wholesaleMinQty), images: form.images.filter(u => u.trim()) }
+      const data = { ...form, price: parseFloat(form.price), mrp: form.mrp ? parseFloat(form.mrp) : null, categoryId: parseInt(form.categoryId), stockQuantity: parseInt(form.stockQuantity), wholesalePrice: parseFloat(form.wholesalePrice), wholesaleMinQty: parseInt(form.wholesaleMinQty), weightKg: form.weightKg ? parseFloat(form.weightKg) : null, deliveryType: form.deliveryType, deliveryCharge: form.deliveryCharge ? parseFloat(form.deliveryCharge) : null, brandId: form.brandId ? parseInt(form.brandId) : null, images: form.images.filter(u => u.trim()) }
       if (editProduct) await api.put(`/products/${editProduct.id}`, data)
       else await api.post('/products', data)
       // Save variants if there are unsaved changes
@@ -163,6 +203,13 @@ export function VendorProducts() {
     if (!confirm('Delete this product?')) return
     await api.delete(`/products/${id}`).catch(() => {})
     toast.success('Product deleted'); load()
+  }
+
+  const toggleProduct = async (id: number) => {
+    try {
+      const res = await api.patch(`/products/${id}/toggle-status`)
+      toast.success(res.data.message); load()
+    } catch { toast.error('Failed to update product status') }
   }
 
   const handleImport = async () => {
@@ -210,7 +257,7 @@ export function VendorProducts() {
                       </div>
                       <div>
                         <p className="font-medium text-gray-800 text-sm">{p.name}</p>
-                        {p.wholesale_enabled && <span className="text-xs text-blue-600 flex items-center gap-0.5"><Zap size={10} />Wholesale</span>}
+                        {!!p.wholesale_enabled && <span className="text-xs text-blue-600 flex items-center gap-0.5"><Zap size={10} />Wholesale</span>}
                       </div>
                     </div>
                   </td>
@@ -221,6 +268,15 @@ export function VendorProducts() {
                   <td className="table-cell px-4">
                     <div className="flex gap-2">
                       <button onClick={() => openEdit(p)} className="p-1.5 hover:bg-gray-100 rounded-lg transition-colors text-gray-500 hover:text-gray-700"><Edit size={14} /></button>
+                      {(p.status === 'active' || p.status === 'disabled') && (
+                        <button
+                          onClick={() => toggleProduct(p.id)}
+                          className={`p-1.5 rounded-lg transition-colors ${p.status === 'active' ? 'hover:bg-yellow-50 text-yellow-600' : 'hover:bg-green-50 text-green-600'}`}
+                          title={p.status === 'active' ? 'Disable product' : 'Enable product'}
+                        >
+                          {p.status === 'active' ? <EyeOff size={14} /> : <Eye size={14} />}
+                        </button>
+                      )}
                       <button onClick={() => deleteProduct(p.id)} className="p-1.5 hover:bg-red-50 rounded-lg transition-colors text-gray-500 hover:text-red-600"><Trash2 size={14} /></button>
                     </div>
                   </td>
@@ -235,15 +291,44 @@ export function VendorProducts() {
           <div className="space-y-4">
             <div><label className="label">Product Name *</label><input className="input" value={form.name} onChange={e => setField('name', e.target.value)} placeholder="Product name" /></div>
             <div><label className="label">Description</label><textarea className="input resize-none" rows={3} value={form.description} onChange={e => setField('description', e.target.value)} placeholder="Product description..." /></div>
-            <div className="grid grid-cols-2 gap-4">
-              <div><label className="label">Price (₹) *</label><input type="number" className="input" value={form.price} onChange={e => setField('price', e.target.value)} placeholder="0.00" min="0.01" step="0.01" /></div>
+            <div className="grid grid-cols-3 gap-4">
+              <div><label className="label">MRP (₹)</label><input type="number" className="input" value={form.mrp} onChange={e => setField('mrp', e.target.value)} placeholder="0.00" min="0" step="0.01" /></div>
+              <div><label className="label">Retail Price (₹) *</label><input type="number" className="input" value={form.price} onChange={e => setField('price', e.target.value)} placeholder="0.00" min="0.01" step="0.01" /></div>
               <div><label className="label">Stock Qty *</label><input type="number" className="input" value={form.stockQuantity} onChange={e => setField('stockQuantity', e.target.value)} placeholder="0" min="0" /></div>
             </div>
-            <div><label className="label">Category *</label>
-              <select className="input" value={form.categoryId} onChange={e => setField('categoryId', e.target.value)}>
-                <option value="">Select category</option>
-                {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+            <div>
+              <label className="label">Weight (KG) — for delivery calculation</label>
+              <input type="number" className="input" value={form.weightKg} onChange={e => setField('weightKg', e.target.value)} placeholder="e.g. 0.5" min="0" step="0.1" />
+            </div>
+            <div className="border border-gray-200 rounded-xl p-4">
+              <label className="label">Delivery Charge Type</label>
+              <select className="input mb-3" value={form.deliveryType} onChange={e => setField('deliveryType', e.target.value)}>
+                <option value="vendor_default">Use store default setting</option>
+                <option value="per_product">Fixed charge per piece (₹)</option>
+                <option value="per_kg">Charge per KG (₹)</option>
               </select>
+              {form.deliveryType !== 'vendor_default' && (
+                <div>
+                  <label className="label text-xs">{form.deliveryType === 'per_kg' ? 'Charge per KG (₹)' : 'Charge per piece (₹)'}</label>
+                  <input type="number" className="input" value={form.deliveryCharge} onChange={e => setField('deliveryCharge', e.target.value)} placeholder="e.g. 50" min="0" step="1" />
+                </div>
+              )}
+            </div>
+            <div><label className="label">Category *</label>
+              <CategoryPicker
+                categories={categories}
+                value={form.categoryId}
+                onChange={(val) => { setField('categoryId', val); setField('brandId', ''); loadBrands(val) }}
+                placeholder="Select category"
+              />
+              <button type="button" onClick={() => setShowCategoryRequest(true)} className="text-xs text-primary-500 hover:text-primary-700 mt-1">Can't find your category? Request one →</button>
+            </div>
+            <div><label className="label">Brand (optional)</label>
+              <select className="input" value={form.brandId} onChange={e => setField('brandId', e.target.value)}>
+                <option value="">No brand</option>
+                {brands.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
+              </select>
+              <button type="button" onClick={() => { setShowBrandRequest(true); setBrandReqForm({ brandName: '', categoryId: form.categoryId }) }} className="text-xs text-primary-500 hover:text-primary-700 mt-1">Can't find your brand? Request one →</button>
             </div>
             <div><label className="label">Product Images</label>
               <div className="space-y-2">
@@ -393,6 +478,84 @@ export function VendorProducts() {
               <button onClick={() => { setImportResult(null); setCsvData('') }} className="btn-secondary w-full justify-center">Import More</button>
             </div>
           )}
+        </Modal>
+
+        {/* Category Request Modal */}
+        <Modal open={showCategoryRequest} onClose={() => setShowCategoryRequest(false)} title="Request New Subcategory">
+          <div className="space-y-4">
+            <p className="text-sm text-gray-500">Can't find your product subcategory? Request a new one under an existing category.</p>
+            <div>
+              <label className="label">Parent Category *</label>
+              <select className="input" value={catReqForm.parentId || ''} onChange={e => setCatReqForm(p => ({ ...p, parentId: e.target.value }))}>
+                <option value="">Select parent category</option>
+                {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="label">Subcategory Name *</label>
+              <input className="input" value={catReqForm.name} onChange={e => setCatReqForm(p => ({ ...p, name: e.target.value }))} placeholder="e.g. Wireless Earbuds" />
+            </div>
+            <div>
+              <label className="label">Description (optional)</label>
+              <input className="input" value={catReqForm.description} onChange={e => setCatReqForm(p => ({ ...p, description: e.target.value }))} placeholder="Brief description" />
+            </div>
+            <div className="flex gap-3 pt-2">
+              <button onClick={() => setShowCategoryRequest(false)} className="btn-secondary">Cancel</button>
+              <button onClick={async () => {
+                if (!catReqForm.name.trim() || !catReqForm.parentId) return toast.error('Parent category and name are required')
+                try {
+                  await api.post('/categories/subcategory', { name: catReqForm.name, description: catReqForm.description, parentId: Number(catReqForm.parentId) })
+                  toast.success('Subcategory request submitted! Admin will review it.')
+                  setShowCategoryRequest(false)
+                  setCatReqForm({ name: '', description: '', parentId: '' })
+                } catch (err: any) { toast.error(err.response?.data?.message || 'Failed') }
+              }} className="btn-primary flex-1 justify-center">Submit Request</button>
+            </div>
+          </div>
+        </Modal>
+
+        {/* Brand Request Modal */}
+        <Modal open={showBrandRequest} onClose={() => setShowBrandRequest(false)} title="Request New Brand">
+          <div className="space-y-4">
+            <p className="text-sm text-gray-500">Can't find your product brand? Request a new one to be added.</p>
+            <div>
+              <label className="label">Brand Name *</label>
+              <input className="input" value={brandReqForm.brandName} onChange={e => setBrandReqForm(p => ({ ...p, brandName: e.target.value }))} placeholder="e.g. Samsung" />
+            </div>
+            <div>
+              <label className="label">For Subcategory</label>
+              <select className="input" value={brandReqForm.categoryId} onChange={e => setBrandReqForm(p => ({ ...p, categoryId: e.target.value }))}>
+                <option value="">Select subcategory</option>
+                {categories.filter(c => c.parent_id).map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+              </select>
+            </div>
+            {myBrandRequests.length > 0 && (
+              <div className="border-t border-gray-100 pt-3">
+                <p className="text-xs font-semibold text-gray-500 uppercase mb-2">Your Brand Requests</p>
+                <div className="space-y-1 max-h-32 overflow-y-auto">
+                  {myBrandRequests.map(r => (
+                    <div key={r.id} className="flex items-center justify-between text-xs py-1">
+                      <span className="text-gray-700">{r.brand_name}</span>
+                      <span className={`px-2 py-0.5 rounded-full font-medium ${r.status === 'approved' ? 'bg-green-50 text-green-700' : r.status === 'rejected' ? 'bg-red-50 text-red-700' : 'bg-yellow-50 text-yellow-700'}`}>{r.status}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+            <div className="flex gap-3 pt-2">
+              <button onClick={() => setShowBrandRequest(false)} className="btn-secondary">Cancel</button>
+              <button onClick={async () => {
+                if (!brandReqForm.brandName.trim() || !brandReqForm.categoryId) return toast.error('Brand name and subcategory are required')
+                try {
+                  await api.post('/brands/request', { brandName: brandReqForm.brandName, categoryId: Number(brandReqForm.categoryId) })
+                  toast.success('Brand request submitted! Admin will review it.')
+                  setShowBrandRequest(false)
+                  setBrandReqForm({ brandName: '', categoryId: '' })
+                  api.get('/brands/my-requests').then(r => setMyBrandRequests(r.data.requests || [])).catch(() => {})
+                } catch (err: any) { toast.error(err.response?.data?.message || 'Failed') }
+              }} className="btn-primary flex-1 justify-center">Submit Request</button>
+            </div>
+          </div>
         </Modal>
       </div>
     </VendorLayout>

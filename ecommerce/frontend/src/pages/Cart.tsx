@@ -183,7 +183,7 @@ export default function CartPage() {
                 )}
                 <div className="flex justify-between">
                   <span className="text-gray-600">Shipping</span>
-                  <span className="text-green-600 font-medium">{total >= 999 ? 'FREE' : formatCurrency(99)}</span>
+                  <span className="text-gray-400 text-xs">Calculated at checkout</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-gray-600">Tax</span>
@@ -191,7 +191,7 @@ export default function CartPage() {
                 </div>
                 <div className="border-t border-gray-100 pt-3 flex justify-between font-bold text-base">
                   <span>Estimated Total</span>
-                  <span className="text-primary-600">{formatCurrency(finalTotal + (total < 999 ? 99 : 0))}</span>
+                  <span className="text-primary-600">{formatCurrency(finalTotal)}</span>
                 </div>
               </div>
               {user ? (

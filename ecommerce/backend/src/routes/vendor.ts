@@ -25,7 +25,7 @@ router.get('/profile', authenticate, requireRole('vendor'), async (req: AuthRequ
 });
 
 router.put('/profile', authenticate, requireRole('vendor'), async (req: AuthRequest, res: Response) => {
-  const { gstNumber, fssaiNumber, gstCertificateUrl, fssaiCertificateUrl, bankAccountName, bankAccountNumber, bankIfsc, bankName, contactPhone, logoUrl, bannerUrl, returnPolicyEnabled, codEnabled, signatureUrl, businessAddress, whatsappNumber } = req.body;
+  const { gstNumber, fssaiNumber, gstCertificateUrl, fssaiCertificateUrl, bankAccountName, bankAccountNumber, bankIfsc, bankName, contactPhone, logoUrl, bannerUrl, returnPolicyEnabled, codEnabled, signatureUrl, businessAddress, whatsappNumber, deliveryType, deliveryChargePerProduct, deliveryChargePerKg, freeDeliveryAbove, deliveryDays } = req.body;
   console.log('[VENDOR PROFILE PUT] logoUrl:', logoUrl, 'bannerUrl:', bannerUrl);
   const conn = await pool.getConnection();
   try {
@@ -52,6 +52,11 @@ router.put('/profile', authenticate, requireRole('vendor'), async (req: AuthRequ
     if (signatureUrl !== undefined) { updateFields.push('signature_url = ?'); updateValues.push(signatureUrl || null); }
     if (businessAddress !== undefined) { updateFields.push('business_address = ?'); updateValues.push(businessAddress || null); }
     if (whatsappNumber !== undefined) { updateFields.push('whatsapp_number = ?'); updateValues.push(whatsappNumber || null); }
+    if (deliveryType !== undefined) { updateFields.push('delivery_type = ?'); updateValues.push(deliveryType); }
+    if (deliveryChargePerProduct !== undefined) { updateFields.push('delivery_charge_per_product = ?'); updateValues.push(deliveryChargePerProduct || 0); }
+    if (deliveryChargePerKg !== undefined) { updateFields.push('delivery_charge_per_kg = ?'); updateValues.push(deliveryChargePerKg || 0); }
+    if (freeDeliveryAbove !== undefined) { updateFields.push('free_delivery_above = ?'); updateValues.push(freeDeliveryAbove || null); }
+    if (deliveryDays !== undefined) { updateFields.push('delivery_days = ?'); updateValues.push(Math.max(1, Math.min(30, Number(deliveryDays) || 5))); }
 
     if (updateFields.length > 0) {
       updateValues.push(vendor.id);
@@ -705,6 +710,35 @@ router.post('/notifications/send-email', authenticate, requireRole('vendor'), as
   } finally {
     conn.release();
   }
+});
+
+// ============ CATEGORY REQUESTS ============
+router.post('/category-request', authenticate, requireRole('vendor'), async (req: AuthRequest, res: Response) => {
+  const { name, description } = req.body;
+  if (!name) return res.status(400).json({ status: 'error', message: 'Category name is required.', errors: [] });
+  const conn = await pool.getConnection();
+  try {
+    const vendor = await getVendor(conn, req.user!.userId);
+    if (!vendor) return res.status(403).json({ status: 'error', message: 'Vendor not found', errors: [] });
+    await conn.query(
+      'INSERT INTO category_requests (vendor_id, name, description) VALUES (?, ?, ?)',
+      [vendor.id, name, description || null]
+    );
+    return res.status(201).json({ status: 'success', message: 'Category request submitted.' });
+  } finally { conn.release(); }
+});
+
+router.get('/category-requests', authenticate, requireRole('vendor'), async (req: AuthRequest, res: Response) => {
+  const conn = await pool.getConnection();
+  try {
+    const vendor = await getVendor(conn, req.user!.userId);
+    if (!vendor) return res.status(403).json({ status: 'error', message: 'Vendor not found', errors: [] });
+    const [requests] = await conn.query(
+      'SELECT * FROM category_requests WHERE vendor_id = ? ORDER BY created_at DESC',
+      [vendor.id]
+    ) as any[];
+    return res.json({ status: 'success', requests });
+  } finally { conn.release(); }
 });
 
 export default router;

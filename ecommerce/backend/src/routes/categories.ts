@@ -12,8 +12,27 @@ router.get('/', async (req, res) => {
       `SELECT c.*, COUNT(p.id) as product_count
       FROM categories c
       LEFT JOIN products p ON p.category_id = c.id AND p.status = 'active'
+      WHERE c.status = 'active'
       GROUP BY c.id
-      ORDER BY c.name`
+      ORDER BY c.parent_id IS NULL DESC, c.parent_id, c.name`
+    ) as any[];
+    return res.json({ status: 'success', categories });
+  } finally {
+    conn.release();
+  }
+});
+
+// GET /api/v1/categories/all - Admin sees all including pending
+router.get('/all', authenticate, requireRole('admin'), async (req: AuthRequest, res: Response) => {
+  const conn = await pool.getConnection();
+  try {
+    const [categories] = await conn.query(
+      `SELECT c.*, COUNT(p.id) as product_count, v.store_name as vendor_name
+      FROM categories c
+      LEFT JOIN products p ON p.category_id = c.id AND p.status = 'active'
+      LEFT JOIN vendors v ON v.id = c.created_by_vendor_id
+      GROUP BY c.id
+      ORDER BY c.status DESC, c.parent_id IS NULL DESC, c.parent_id, c.name`
     ) as any[];
     return res.json({ status: 'success', categories });
   } finally {
@@ -26,8 +45,44 @@ router.post('/', authenticate, requireRole('admin'), async (req: AuthRequest, re
   const slug = name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
   const conn = await pool.getConnection();
   try {
-    await conn.query('INSERT INTO categories (name, slug, description, image_url, parent_id) VALUES (?, ?, ?, ?, ?)', [name, slug, description || '', imageUrl || null, parentId || null]);
+    await conn.query('INSERT INTO categories (name, slug, description, image_url, parent_id, status) VALUES (?, ?, ?, ?, ?, "active")', [name, slug, description || '', imageUrl || null, parentId || null]);
     return res.status(201).json({ status: 'success', message: 'Category created.' });
+  } finally {
+    conn.release();
+  }
+});
+
+// Vendor creates a subcategory (pending approval)
+router.post('/subcategory', authenticate, requireRole('vendor'), async (req: AuthRequest, res: Response) => {
+  const { name, description, parentId } = req.body;
+  if (!name || !parentId) return res.status(400).json({ status: 'error', message: 'Name and parent category are required.', errors: [] });
+  const slug = name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
+  const conn = await pool.getConnection();
+  try {
+    const [vendors] = await conn.query('SELECT id FROM vendors WHERE user_id = ?', [req.user!.userId]) as any[];
+    if (vendors.length === 0) return res.status(403).json({ status: 'error', message: 'Vendor not found', errors: [] });
+    await conn.query(
+      'INSERT INTO categories (name, slug, description, parent_id, status, created_by_vendor_id) VALUES (?, ?, ?, ?, "pending", ?)',
+      [name, slug, description || '', parentId, vendors[0].id]
+    );
+    return res.status(201).json({ status: 'success', message: 'Subcategory request submitted. Awaiting admin approval.' });
+  } finally {
+    conn.release();
+  }
+});
+
+// Admin approves/rejects a subcategory
+router.put('/:id/approve', authenticate, requireRole('admin'), async (req: AuthRequest, res: Response) => {
+  const { status } = req.body;
+  if (!['active', 'rejected'].includes(status)) return res.status(400).json({ status: 'error', message: 'Invalid status', errors: [] });
+  const conn = await pool.getConnection();
+  try {
+    if (status === 'rejected') {
+      await conn.query('DELETE FROM categories WHERE id = ? AND status = "pending"', [req.params.id]);
+      return res.json({ status: 'success', message: 'Subcategory rejected and removed.' });
+    }
+    await conn.query('UPDATE categories SET status = "active" WHERE id = ?', [req.params.id]);
+    return res.json({ status: 'success', message: 'Subcategory approved.' });
   } finally {
     conn.release();
   }
@@ -47,8 +102,36 @@ router.put('/:id', authenticate, requireRole('admin'), async (req: AuthRequest, 
 router.delete('/:id', authenticate, requireRole('admin'), async (req: AuthRequest, res: Response) => {
   const conn = await pool.getConnection();
   try {
+    // Get all subcategory IDs
+    const [subs] = await conn.query('SELECT id FROM categories WHERE parent_id = ?', [req.params.id]) as any[];
+    const subIds = (subs as any[]).map((s: any) => s.id);
+    const allIds = [Number(req.params.id), ...subIds];
+    const placeholders = allIds.map(() => '?').join(',');
+
+    // Disable FK checks for this operation
+    await conn.query('SET FOREIGN_KEY_CHECKS = 0');
+
+    // Delete related product data
+    await conn.query(`DELETE pi FROM product_images pi JOIN products p ON pi.product_id = p.id WHERE p.category_id IN (${placeholders})`, allIds);
+    await conn.query(`DELETE po FROM product_offers po JOIN products p ON po.product_id = p.id WHERE p.category_id IN (${placeholders})`, allIds);
+    await conn.query(`DELETE pv FROM product_variants pv JOIN products p ON pv.product_id = p.id WHERE p.category_id IN (${placeholders})`, allIds);
+    await conn.query(`DELETE fp FROM featured_products fp JOIN products p ON fp.product_id = p.id WHERE p.category_id IN (${placeholders})`, allIds);
+    await conn.query(`DELETE w FROM wishlist w JOIN products p ON w.product_id = p.id WHERE p.category_id IN (${placeholders})`, allIds);
+    await conn.query(`DELETE FROM products WHERE category_id IN (${placeholders})`, allIds);
+
+    // Delete subcategories, then parent
+    if (subIds.length > 0) {
+      await conn.query(`DELETE FROM categories WHERE id IN (${subIds.map(() => '?').join(',')})`, subIds);
+    }
     await conn.query('DELETE FROM categories WHERE id = ?', [req.params.id]);
-    return res.json({ status: 'success', message: 'Category deleted.' });
+
+    // Re-enable FK checks
+    await conn.query('SET FOREIGN_KEY_CHECKS = 1');
+
+    return res.json({ status: 'success', message: 'Category, subcategories, and associated products deleted.' });
+  } catch (err) {
+    await conn.query('SET FOREIGN_KEY_CHECKS = 1');
+    throw err;
   } finally {
     conn.release();
   }

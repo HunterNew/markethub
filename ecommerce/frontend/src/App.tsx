@@ -1,42 +1,80 @@
-import React from 'react'
+import React, { lazy, Suspense } from 'react'
 import { BrowserRouter, Routes, Route } from 'react-router-dom'
 import { AuthProvider, useAuth } from './context/AuthContext'
 import { CartProvider } from './context/CartContext'
+import { ThemeProvider } from './context/ThemeContext'
+import { WishlistProvider } from './context/WishlistContext'
 import api from './api/client'
 import ProtectedRoute from './components/layout/ProtectedRoute'
-import Header from './components/layout/Header'
-import Footer from './components/layout/Footer'
+import { ThemedHeader, ThemedFooter, ThemedHome } from './components/themes'
 
-// Pages
-import HomePage from './pages/Home'
+// Eagerly loaded (homepage + common)
 import ProductsPage from './pages/Products'
 import ProductDetail from './pages/ProductDetail'
-import InvoicePage from './pages/Invoice'
-import CartPage from './pages/Cart'
-import CheckoutPage from './pages/Checkout'
-import VendorStorePage from './pages/VendorStore'
-import { LoginPage, RegisterPage, ForgotPasswordPage, ResetPasswordPage } from './pages/auth/Auth'
-import {
-  CustomerDashboard, CustomerOrdersPage,
-  CustomerOrderDetailPage, OrderConfirmationPage
-} from './pages/customer/CustomerPages'
-import { CustomerProfilePage, VendorProfilePage, AdminProfilePage } from './pages/ProfilePage'
-import {
-  VendorDashboard, VendorProducts, VendorOrders,
-  VendorCoupons, VendorEarnings, VendorOffers, VendorReviews, VendorNotifications
-} from './pages/vendor/VendorPages'
-import {
-  AdminDashboard, AdminVendors, AdminProducts,
-  AdminOrders, AdminReports, AdminSettings, AdminWithdrawals,
-  AdminCategories, AdminCoupons, AdminBanners, AdminPromoCards, AdminReturns, AdminReviews, AdminNotifications
-} from './pages/admin/AdminPages'
+import SellPage from './pages/SellPage'
+
+// Lazy loaded pages
+const InvoicePage = lazy(() => import('./pages/Invoice'))
+const CartPage = lazy(() => import('./pages/Cart'))
+const CheckoutPage = lazy(() => import('./pages/Checkout'))
+const VendorStorePage = lazy(() => import('./pages/VendorStore'))
+const WishlistPage = lazy(() => import('./pages/Wishlist'))
+
+// Auth - lazy
+const AuthPages = lazy(() => import('./pages/auth/Auth').then(m => ({ default: m.LoginPage })))
+const RegisterPageLazy = lazy(() => import('./pages/auth/Auth').then(m => ({ default: m.RegisterPage })))
+const VendorRegisterPageLazy = lazy(() => import('./pages/auth/Auth').then(m => ({ default: m.VendorRegisterPage })))
+const ForgotPasswordPageLazy = lazy(() => import('./pages/auth/Auth').then(m => ({ default: m.ForgotPasswordPage })))
+const ResetPasswordPageLazy = lazy(() => import('./pages/auth/Auth').then(m => ({ default: m.ResetPasswordPage })))
+
+// Customer - lazy
+const CustomerDashboardLazy = lazy(() => import('./pages/customer/CustomerPages').then(m => ({ default: m.CustomerDashboard })))
+const CustomerOrdersPageLazy = lazy(() => import('./pages/customer/CustomerPages').then(m => ({ default: m.CustomerOrdersPage })))
+const CustomerOrderDetailPageLazy = lazy(() => import('./pages/customer/CustomerPages').then(m => ({ default: m.CustomerOrderDetailPage })))
+const OrderConfirmationPageLazy = lazy(() => import('./pages/customer/CustomerPages').then(m => ({ default: m.OrderConfirmationPage })))
+
+// Profile - lazy
+const CustomerProfilePageLazy = lazy(() => import('./pages/ProfilePage').then(m => ({ default: m.CustomerProfilePage })))
+const VendorProfilePageLazy = lazy(() => import('./pages/ProfilePage').then(m => ({ default: m.VendorProfilePage })))
+const AdminProfilePageLazy = lazy(() => import('./pages/ProfilePage').then(m => ({ default: m.AdminProfilePage })))
+
+// Vendor - lazy
+const VendorDashboardLazy = lazy(() => import('./pages/vendor/VendorPages').then(m => ({ default: m.VendorDashboard })))
+const VendorProductsLazy = lazy(() => import('./pages/vendor/VendorPages').then(m => ({ default: m.VendorProducts })))
+const VendorOrdersLazy = lazy(() => import('./pages/vendor/VendorPages').then(m => ({ default: m.VendorOrders })))
+const VendorCouponsLazy = lazy(() => import('./pages/vendor/VendorPages').then(m => ({ default: m.VendorCoupons })))
+const VendorEarningsLazy = lazy(() => import('./pages/vendor/VendorPages').then(m => ({ default: m.VendorEarnings })))
+const VendorOffersLazy = lazy(() => import('./pages/vendor/VendorPages').then(m => ({ default: m.VendorOffers })))
+const VendorReviewsLazy = lazy(() => import('./pages/vendor/VendorPages').then(m => ({ default: m.VendorReviews })))
+const VendorNotificationsLazy = lazy(() => import('./pages/vendor/VendorPages').then(m => ({ default: m.VendorNotifications })))
+
+// Admin - lazy
+const AdminDashboardLazy = lazy(() => import('./pages/admin/AdminPages').then(m => ({ default: m.AdminDashboard })))
+const AdminVendorsLazy = lazy(() => import('./pages/admin/AdminPages').then(m => ({ default: m.AdminVendors })))
+const AdminProductsLazy = lazy(() => import('./pages/admin/AdminPages').then(m => ({ default: m.AdminProducts })))
+const AdminOrdersLazy = lazy(() => import('./pages/admin/AdminPages').then(m => ({ default: m.AdminOrders })))
+const AdminReportsLazy = lazy(() => import('./pages/admin/AdminPages').then(m => ({ default: m.AdminReports })))
+const AdminSettingsLazy = lazy(() => import('./pages/admin/AdminPages').then(m => ({ default: m.AdminSettings })))
+const AdminWithdrawalsLazy = lazy(() => import('./pages/admin/AdminPages').then(m => ({ default: m.AdminWithdrawals })))
+const AdminCategoriesLazy = lazy(() => import('./pages/admin/AdminPages').then(m => ({ default: m.AdminCategories })))
+const AdminCouponsLazy = lazy(() => import('./pages/admin/AdminPages').then(m => ({ default: m.AdminCoupons })))
+const AdminBannersLazy = lazy(() => import('./pages/admin/AdminPages').then(m => ({ default: m.AdminBanners })))
+const AdminPromoCardsLazy = lazy(() => import('./pages/admin/AdminPages').then(m => ({ default: m.AdminPromoCards })))
+const AdminReturnsLazy = lazy(() => import('./pages/admin/AdminPages').then(m => ({ default: m.AdminReturns })))
+const AdminReviewsLazy = lazy(() => import('./pages/admin/AdminPages').then(m => ({ default: m.AdminReviews })))
+const AdminNotificationsLazy = lazy(() => import('./pages/admin/AdminPages').then(m => ({ default: m.AdminNotifications })))
+const AdminBrandsLazy = lazy(() => import('./pages/admin/AdminPages').then(m => ({ default: m.AdminBrands })))
+
+function PageLoader() {
+  return <div className="min-h-screen flex items-center justify-center"><div className="w-8 h-8 border-4 border-primary-500 border-t-transparent rounded-full animate-spin" /></div>
+}
 
 function MainLayout({ children }: { children: React.ReactNode }) {
   return (
     <div className="flex flex-col min-h-screen">
-      <Header />
+      <ThemedHeader />
       <main className="flex-1">{children}</main>
-      <Footer />
+      <ThemedFooter />
     </div>
   )
 }
@@ -46,15 +84,20 @@ export default function App() {
     <BrowserRouter>
       <AuthProvider>
         <CartProvider>
+          <WishlistProvider>
+          <ThemeProvider>
+          <Suspense fallback={<PageLoader />}>
           <Routes>
             {/* Auth pages - no header/footer */}
-            <Route path="/auth/login" element={<LoginPage />} />
-            <Route path="/auth/register" element={<RegisterPage />} />
-            <Route path="/auth/forgot-password" element={<ForgotPasswordPage />} />
-            <Route path="/auth/reset-password" element={<ResetPasswordPage />} />
+            <Route path="/auth/login" element={<AuthPages />} />
+            <Route path="/auth/register" element={<RegisterPageLazy />} />
+            <Route path="/auth/register/vendor" element={<VendorRegisterPageLazy />} />
+            <Route path="/auth/forgot-password" element={<ForgotPasswordPageLazy />} />
+            <Route path="/auth/reset-password" element={<ResetPasswordPageLazy />} />
 
             {/* Public pages with header/footer */}
-            <Route path="/" element={<MainLayout><HomePage /></MainLayout>} />
+            <Route path="/" element={<MainLayout><ThemedHome /></MainLayout>} />
+            <Route path="/sell" element={<SellPage />} />
             <Route path="/products" element={<MainLayout><ProductsPage /></MainLayout>} />
             <Route path="/products/:id" element={<MainLayout><ProductDetail /></MainLayout>} />
             <Route path="/vendor/:slug" element={<MainLayout><VendorStorePage /></MainLayout>} />
@@ -62,7 +105,7 @@ export default function App() {
             {/* Order confirmation */}
             <Route path="/order-confirmation/:id" element={
               <ProtectedRoute roles={['customer']}>
-                <MainLayout><OrderConfirmationPage /></MainLayout>
+                <MainLayout><OrderConfirmationPageLazy /></MainLayout>
               </ProtectedRoute>
             } />
             <Route path="/invoice/:id" element={
@@ -75,6 +118,9 @@ export default function App() {
             <Route path="/cart" element={
               <MainLayout><CartPage /></MainLayout>
             } />
+            <Route path="/wishlist" element={
+              <MainLayout><WishlistPage /></MainLayout>
+            } />
             <Route path="/checkout" element={
               <ProtectedRoute roles={['customer']}>
                 <MainLayout><CheckoutPage /></MainLayout>
@@ -84,166 +130,171 @@ export default function App() {
             {/* Customer dashboard */}
             <Route path="/customer" element={
               <ProtectedRoute roles={['customer']}>
-                <CustomerDashboard />
+                <CustomerDashboardLazy />
               </ProtectedRoute>
             } />
             <Route path="/customer/orders" element={
               <ProtectedRoute roles={['customer']}>
-                <CustomerOrdersPage />
+                <CustomerOrdersPageLazy />
               </ProtectedRoute>
             } />
             <Route path="/customer/orders/:id" element={
               <ProtectedRoute roles={['customer']}>
-                <CustomerOrderDetailPage />
+                <CustomerOrderDetailPageLazy />
               </ProtectedRoute>
             } />
             <Route path="/customer/profile" element={
               <ProtectedRoute roles={['customer']}>
-                <CustomerProfilePage />
+                <CustomerProfilePageLazy />
               </ProtectedRoute>
             } />
 
             {/* Vendor dashboard */}
             <Route path="/vendor" element={
               <ProtectedRoute roles={['vendor']}>
-                <VendorDashboard />
+                <VendorDashboardLazy />
               </ProtectedRoute>
             } />
             <Route path="/vendor/products" element={
               <ProtectedRoute roles={['vendor']}>
-                <VendorProducts />
+                <VendorProductsLazy />
               </ProtectedRoute>
             } />
             <Route path="/vendor/orders" element={
               <ProtectedRoute roles={['vendor']}>
-                <VendorOrders />
+                <VendorOrdersLazy />
               </ProtectedRoute>
             } />
             <Route path="/vendor/coupons" element={
               <ProtectedRoute roles={['vendor']}>
-                <VendorCoupons />
+                <VendorCouponsLazy />
               </ProtectedRoute>
             } />
             <Route path="/vendor/offers" element={
               <ProtectedRoute roles={['vendor']}>
-                <VendorOffers />
+                <VendorOffersLazy />
               </ProtectedRoute>
             } />
             <Route path="/vendor/reviews" element={
               <ProtectedRoute roles={['vendor']}>
-                <VendorReviews />
+                <VendorReviewsLazy />
               </ProtectedRoute>
             } />
             <Route path="/vendor/notifications" element={
               <ProtectedRoute roles={['vendor']}>
-                <VendorNotifications />
+                <VendorNotificationsLazy />
               </ProtectedRoute>
             } />
             <Route path="/vendor/earnings" element={
               <ProtectedRoute roles={['vendor']}>
-                <VendorEarnings />
+                <VendorEarningsLazy />
               </ProtectedRoute>
             } />
             <Route path="/vendor/withdrawals" element={
               <ProtectedRoute roles={['vendor']}>
-                <VendorEarnings />
+                <VendorEarningsLazy />
               </ProtectedRoute>
             } />
             <Route path="/vendor/profile" element={
               <ProtectedRoute roles={['vendor']}>
-                <VendorProfilePage />
+                <VendorProfilePageLazy />
               </ProtectedRoute>
             } />
 
             {/* Admin dashboard */}
             <Route path="/admin" element={
               <ProtectedRoute roles={['admin']}>
-                <AdminDashboard />
+                <AdminDashboardLazy />
               </ProtectedRoute>
             } />
             <Route path="/admin/vendors" element={
               <ProtectedRoute roles={['admin']}>
-                <AdminVendors />
+                <AdminVendorsLazy />
               </ProtectedRoute>
             } />
             <Route path="/admin/products" element={
               <ProtectedRoute roles={['admin']}>
-                <AdminProducts />
+                <AdminProductsLazy />
               </ProtectedRoute>
             } />
             <Route path="/admin/categories" element={
               <ProtectedRoute roles={['admin']}>
-                <AdminCategories />
+                <AdminCategoriesLazy />
               </ProtectedRoute>
             } />
             <Route path="/admin/orders" element={
               <ProtectedRoute roles={['admin']}>
-                <AdminOrders />
+                <AdminOrdersLazy />
               </ProtectedRoute>
             } />
             <Route path="/admin/coupons" element={
               <ProtectedRoute roles={['admin']}>
-                <AdminCoupons />
+                <AdminCouponsLazy />
               </ProtectedRoute>
             } />
             <Route path="/admin/banners" element={
               <ProtectedRoute roles={['admin']}>
-                <AdminBanners />
+                <AdminBannersLazy />
               </ProtectedRoute>
             } />
             <Route path="/admin/promo-cards" element={
               <ProtectedRoute roles={['admin']}>
-                <AdminPromoCards />
+                <AdminPromoCardsLazy />
               </ProtectedRoute>
             } />
             <Route path="/admin/returns" element={
               <ProtectedRoute roles={['admin']}>
-                <AdminReturns />
+                <AdminReturnsLazy />
               </ProtectedRoute>
             } />
             <Route path="/admin/reviews" element={
               <ProtectedRoute roles={['admin']}>
-                <AdminReviews />
+                <AdminReviewsLazy />
               </ProtectedRoute>
             } />
             <Route path="/admin/notifications" element={
               <ProtectedRoute roles={['admin']}>
-                <AdminNotifications />
+                <AdminNotificationsLazy />
+              </ProtectedRoute>
+            } />
+            <Route path="/admin/brands" element={
+              <ProtectedRoute roles={['admin']}>
+                <AdminBrandsLazy />
               </ProtectedRoute>
             } />
             <Route path="/admin/reports" element={
               <ProtectedRoute roles={['admin']}>
-                <AdminReports />
+                <AdminReportsLazy />
               </ProtectedRoute>
             } />
             <Route path="/admin/withdrawals" element={
               <ProtectedRoute roles={['admin']}>
-                <AdminWithdrawals />
+                <AdminWithdrawalsLazy />
               </ProtectedRoute>
             } />
             <Route path="/admin/settings" element={
               <ProtectedRoute roles={['admin']}>
-                <AdminSettings />
+                <AdminSettingsLazy />
               </ProtectedRoute>
             } />
             <Route path="/admin/settings/tax" element={
               <ProtectedRoute roles={['admin']}>
-                <AdminSettings />
+                <AdminSettingsLazy />
               </ProtectedRoute>
             } />
             <Route path="/admin/settings/wholesale" element={
               <ProtectedRoute roles={['admin']}>
-                <AdminSettings />
+                <AdminSettingsLazy />
               </ProtectedRoute>
             } />
             <Route path="/admin/settings/homepage" element={
               <ProtectedRoute roles={['admin']}>
-                <AdminSettings />
+                <AdminSettingsLazy />
               </ProtectedRoute>
             } />
             <Route path="/admin/profile" element={
               <ProtectedRoute roles={['admin']}>
-                <AdminProfilePage />
+                <AdminProfilePageLazy />
               </ProtectedRoute>
             } />
 
@@ -258,7 +309,10 @@ export default function App() {
               </MainLayout>
             } />
           </Routes>
+          </Suspense>
           <WhatsAppSupport />
+          </ThemeProvider>
+          </WishlistProvider>
         </CartProvider>
       </AuthProvider>
     </BrowserRouter>

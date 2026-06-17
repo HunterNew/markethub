@@ -143,11 +143,16 @@ export default function InvoicePage() {
               <div>
                 <p><span className="font-bold">Order Number:</span> {order.id}</p>
                 <p><span className="font-bold">Order Date:</span> {orderDate}</p>
+                <p><span className="font-bold">Order Status:</span> <span style={{ textTransform: 'capitalize' }}>{order.status === 'return_requested' ? 'Return Requested' : order.status}</span></p>
+                {order.expected_delivery_date && (
+                  <p><span className="font-bold">Expected Delivery:</span> {new Date(order.expected_delivery_date).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric', weekday: 'short' })}</p>
+                )}
               </div>
               <div className="text-right">
                 <p><span className="font-bold">Invoice Number:</span> {invoiceNo}</p>
                 <p><span className="font-bold">Invoice Date:</span> {invoiceDate}</p>
                 <p><span className="font-bold">Mode of Payment:</span> {order.payment_method === 'cod' ? 'Cash on Delivery' : order.payment_method === 'razorpay' ? 'UPI/Net Banking' : 'Card'}</p>
+                <p><span className="font-bold">Payment Status:</span> <span style={{ textTransform: 'capitalize' }}>{order.payment_status}</span></p>
               </div>
             </div>
           </div>
@@ -215,6 +220,18 @@ export default function InvoicePage() {
                   <td className="border border-gray-800 px-2 py-2 text-right">₹{Number(order.tax_amount || 0).toFixed(2)}</td>
                   <td className="border border-gray-800 px-2 py-2 text-right">₹{Number(order.total).toFixed(2)}</td>
                 </tr>
+                {Number(order.delivery_charge) > 0 && (
+                  <tr>
+                    <td className="border border-gray-800 px-2 py-2" colSpan={5}>Delivery Charges:</td>
+                    <td className="border border-gray-800 px-2 py-2 text-right" colSpan={5}>₹{Number(order.delivery_charge).toFixed(2)}</td>
+                  </tr>
+                )}
+                {Number(order.discount_amount) > 0 && (
+                  <tr>
+                    <td className="border border-gray-800 px-2 py-2" colSpan={5}>Discount{order.coupon_code ? ` (${order.coupon_code})` : ''}:</td>
+                    <td className="border border-gray-800 px-2 py-2 text-right text-green-700" colSpan={5}>-₹{Number(order.discount_amount).toFixed(2)}</td>
+                  </tr>
+                )}
               </tbody>
             </table>
 

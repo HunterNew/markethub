@@ -6,8 +6,8 @@ const router = Router();
 
 // GET /api/v1/products - Public storefront listing
 router.get('/', optionalAuth, async (req: AuthRequest, res: Response) => {
-  const { search, categoryId, minPrice, maxPrice, page = 1, vendorId, sort = 'newest' } = req.query;
-  const limit = 20;
+  const { search, categoryId, minPrice, maxPrice, page = 1, vendorId, sort = 'newest', brandIds, rating, availability, limit: limitParam } = req.query;
+  const limit = Math.min(Number(limitParam) || 20, 50);
   const offset = (Number(page) - 1) * limit;
 
   const conn = await pool.getConnection();
@@ -24,16 +24,30 @@ router.get('/', optionalAuth, async (req: AuthRequest, res: Response) => {
     const userWholesaleEligible = req.user ? await checkWholesaleEligible(conn, req.user.userId) : false;
     const showWholesale = wholesaleEnabled && (wholesaleVisibility === 'all' || userWholesaleEligible);
 
-    let whereClauses = ['p.status = "active"', 'v.status = "approved"'];
+    let whereClauses = ['v.status = "approved"'];
     let params: any[] = [];
+
+    // Availability filter
+    if (availability === 'out_of_stock') {
+      whereClauses.push('(p.status = "out_of_stock" OR p.stock_quantity = 0)');
+      whereClauses.push('p.status IN ("active", "out_of_stock")');
+    } else if (availability === 'in_stock') {
+      whereClauses.push('p.status = "active"');
+      whereClauses.push('p.stock_quantity > 0');
+    } else if (availability === 'all') {
+      whereClauses.push('p.status IN ("active", "out_of_stock")');
+    } else {
+      // Default: show active (includes 0 stock as out_of_stock display)
+      whereClauses.push('p.status IN ("active", "out_of_stock")');
+    }
 
     if (search) {
       whereClauses.push('(p.name LIKE ? OR p.description LIKE ?)');
       params.push(`%${search}%`, `%${search}%`);
     }
     if (categoryId) {
-      whereClauses.push('p.category_id = ?');
-      params.push(Number(categoryId));
+      whereClauses.push('(p.category_id = ? OR p.category_id IN (SELECT id FROM categories WHERE parent_id = ?))');
+      params.push(Number(categoryId), Number(categoryId));
     }
     if (minPrice) {
       whereClauses.push('p.price >= ?');
@@ -47,22 +61,39 @@ router.get('/', optionalAuth, async (req: AuthRequest, res: Response) => {
       whereClauses.push('p.vendor_id = ?');
       params.push(Number(vendorId));
     }
+    if (brandIds) {
+      const ids = String(brandIds).split(',').map(Number).filter(n => !isNaN(n) && n > 0);
+      if (ids.length > 0) {
+        whereClauses.push(`p.brand_id IN (${ids.map(() => '?').join(',')})`);
+        params.push(...ids);
+      }
+    }
 
     const whereSQL = 'WHERE ' + whereClauses.join(' AND ');
+
+    // Rating filter - applied as HAVING since avg_rating comes from a subquery
+    let havingSQL = '';
+    const havingParams: any[] = [];
+    if (rating && Number(rating) > 0) {
+      havingSQL = 'HAVING avg_rating >= ?';
+      havingParams.push(Number(rating));
+    }
 
     let orderSQL = 'ORDER BY p.created_at DESC';
     if (sort === 'price_asc') orderSQL = 'ORDER BY p.price ASC';
     else if (sort === 'price_desc') orderSQL = 'ORDER BY p.price DESC';
     else if (sort === 'popular') orderSQL = 'ORDER BY p.created_at DESC';
+    else if (sort === 'rating') orderSQL = 'ORDER BY avg_rating DESC';
 
     const [products] = await conn.query(
-      `SELECT p.*, c.name as category_name, v.store_name, v.store_slug,
+      `SELECT p.*, c.name as category_name, v.store_name, v.store_slug, v.delivery_days,
         pi.image_url as primary_image,
         po.offer_price, po.ends_at as offer_ends_at,
         CASE WHEN po.id IS NOT NULL THEN true ELSE false END as is_on_sale,
         ${showWholesale ? 'p.wholesale_price, p.wholesale_min_qty, p.wholesale_enabled' : 'NULL as wholesale_price, NULL as wholesale_min_qty, false as wholesale_enabled'},
         COALESCE(rv.avg_rating, 0) as avg_rating, COALESCE(rv.review_count, 0) as review_count,
-        vp.min_variant_price, vp.max_variant_price
+        vp.min_variant_price, vp.max_variant_price,
+        br.name as brand_name
       FROM products p
       JOIN vendors v ON p.vendor_id = v.id
       JOIN categories c ON p.category_id = c.id
@@ -70,16 +101,32 @@ router.get('/', optionalAuth, async (req: AuthRequest, res: Response) => {
       LEFT JOIN product_offers po ON po.product_id = p.id AND po.starts_at <= NOW() AND po.ends_at >= NOW()
       LEFT JOIN (SELECT product_id, AVG(rating) as avg_rating, COUNT(*) as review_count FROM product_reviews GROUP BY product_id) rv ON rv.product_id = p.id
       LEFT JOIN (SELECT product_id, MIN(price) as min_variant_price, MAX(price) as max_variant_price FROM product_variants WHERE is_active = true GROUP BY product_id) vp ON vp.product_id = p.id
+      LEFT JOIN brands br ON br.id = p.brand_id
       ${whereSQL}
+      ${havingSQL}
       ${orderSQL}
       LIMIT ? OFFSET ?`,
-      [...params, limit, offset]
+      [...params, ...havingParams, limit, offset]
     ) as any[];
 
-    const [countResult] = await conn.query(
-      `SELECT COUNT(*) as total FROM products p JOIN vendors v ON p.vendor_id = v.id ${whereSQL}`,
-      params
-    ) as any[];
+    // Count query also needs the rating filter
+    let countQuery = `SELECT COUNT(*) as total FROM products p JOIN vendors v ON p.vendor_id = v.id`;
+    let countParams = [...params];
+    if (havingSQL) {
+      countQuery = `SELECT COUNT(*) as total FROM (
+        SELECT p.id, COALESCE(rv.avg_rating, 0) as avg_rating
+        FROM products p
+        JOIN vendors v ON p.vendor_id = v.id
+        LEFT JOIN (SELECT product_id, AVG(rating) as avg_rating FROM product_reviews GROUP BY product_id) rv ON rv.product_id = p.id
+        ${whereSQL}
+        ${havingSQL}
+      ) filtered`;
+      countParams = [...params, ...havingParams];
+    } else {
+      countQuery += ` ${whereSQL}`;
+    }
+
+    const [countResult] = await conn.query(countQuery, countParams) as any[];
 
     return res.json({
       status: 'success',
@@ -108,7 +155,7 @@ router.get('/featured', async (req, res) => {
     }
 
     let [products] = await conn.query(
-      `SELECT p.*, v.store_name, v.store_slug, c.name as category_name,
+      `SELECT p.*, v.store_name, v.store_slug, v.delivery_days, c.name as category_name,
         pi.image_url as primary_image, po.offer_price,
         CASE WHEN po.id IS NOT NULL THEN true ELSE false END as is_on_sale
       FROM featured_products fp
@@ -187,7 +234,8 @@ router.get('/best-sellers', async (req, res) => {
     const count = sm['homepage_best_sellers_count'] || 8;
 
     const [products] = await conn.query(
-      `SELECT p.*, ANY_VALUE(v.store_name) as store_name, ANY_VALUE(c.name) as category_name,
+      `SELECT p.*, ANY_VALUE(v.store_name) as store_name, ANY_VALUE(v.store_slug) as store_slug, ANY_VALUE(v.logo_url) as store_logo,
+        ANY_VALUE(c.name) as category_name,
         ANY_VALUE(pi.image_url) as primary_image,
         COALESCE(SUM(oi.quantity), 0) as total_sold
       FROM products p
@@ -246,17 +294,19 @@ router.get('/:id', optionalAuth, async (req: AuthRequest, res: Response) => {
     const [products] = await conn.query(
       `SELECT p.*, c.name as category_name, c.slug as category_slug,
         v.store_name, v.store_slug, v.description as vendor_description, v.logo_url as vendor_logo,
-        v.return_policy_enabled, v.cod_enabled,
+        v.return_policy_enabled, v.cod_enabled, v.delivery_days,
         tc.rate as tax_rate,
         po.offer_price, po.ends_at as offer_ends_at,
         CASE WHEN po.id IS NOT NULL THEN true ELSE false END as is_on_sale,
-        fp.id as is_featured
+        fp.id as is_featured,
+        br.name as brand_name, br.logo_url as brand_logo_url
       FROM products p
       JOIN vendors v ON p.vendor_id = v.id AND v.status = 'approved'
       JOIN categories c ON p.category_id = c.id
       LEFT JOIN tax_config tc ON tc.id = p.tax_rate_id
       LEFT JOIN product_offers po ON po.product_id = p.id AND po.starts_at <= NOW() AND po.ends_at >= NOW()
       LEFT JOIN featured_products fp ON fp.product_id = p.id
+      LEFT JOIN brands br ON br.id = p.brand_id
       WHERE p.id = ? AND p.status = 'active'`,
       [req.params.id]
     ) as any[];
@@ -359,10 +409,12 @@ router.post('/', authenticate, requireRole('vendor'), async (req: AuthRequest, r
     }
 
     const [result] = await conn.query(
-      `INSERT INTO products (vendor_id, category_id, name, description, price, stock_quantity, status, wholesale_enabled, wholesale_price, wholesale_min_qty)
-       VALUES (?, ?, ?, ?, ?, ?, 'pending_approval', ?, ?, ?)`,
-      [vendors[0].id, categoryId, name, description || '', price, stockQuantity,
-       wholesaleEnabled ? 1 : 0, wholesaleEnabled ? wholesalePrice : null, wholesaleEnabled ? wholesaleMinQty : null]
+      `INSERT INTO products (vendor_id, category_id, name, description, price, mrp, stock_quantity, status, wholesale_enabled, wholesale_price, wholesale_min_qty, weight_kg, delivery_type, delivery_charge, brand_id)
+       VALUES (?, ?, ?, ?, ?, ?, ?, 'pending_approval', ?, ?, ?, ?, ?, ?, ?)`,
+      [vendors[0].id, categoryId, name, description || '', price, req.body.mrp || null, stockQuantity,
+       wholesaleEnabled ? 1 : 0, wholesaleEnabled ? wholesalePrice : null, wholesaleEnabled ? wholesaleMinQty : null,
+       req.body.weightKg || null, req.body.deliveryType || 'vendor_default', req.body.deliveryCharge || null,
+       req.body.brandId || null]
     ) as any[];
 
     const productId = result.insertId;
@@ -399,19 +451,20 @@ router.put('/:id', authenticate, requireRole('vendor'), async (req: AuthRequest,
     ) as any[];
     if (products.length === 0) return res.status(404).json({ status: 'error', message: 'Product not found', errors: [] });
 
-    const { name, description, price, categoryId, stockQuantity, wholesaleEnabled, wholesalePrice, wholesaleMinQty, images } = req.body;
+    const { name, description, price, categoryId, stockQuantity, wholesaleEnabled, wholesalePrice, wholesaleMinQty, weightKg, deliveryType, deliveryCharge, images, brandId } = req.body;
 
     if (price !== undefined && Number(price) <= 0) {
       return res.status(400).json({ status: 'error', message: 'Price must be > 0', errors: [{ field: 'price', message: 'Must be > 0' }] });
     }
 
     await conn.query(
-      `UPDATE products SET name=?, description=?, price=?, category_id=?, stock_quantity=?,
-       wholesale_enabled=?, wholesale_price=?, wholesale_min_qty=?, updated_at=NOW()
+      `UPDATE products SET name=?, description=?, price=?, mrp=?, category_id=?, stock_quantity=?,
+       wholesale_enabled=?, wholesale_price=?, wholesale_min_qty=?, weight_kg=?, delivery_type=?, delivery_charge=?, brand_id=?, updated_at=NOW(),
+       status = CASE WHEN status = 'out_of_stock' AND stock_quantity > 0 THEN 'active' ELSE status END
        WHERE id = ?`,
-      [name, description, price, categoryId, stockQuantity,
+      [name, description, price, req.body.mrp || null, categoryId, Number(stockQuantity),
        wholesaleEnabled ? 1 : 0, wholesaleEnabled ? wholesalePrice : null, wholesaleEnabled ? wholesaleMinQty : null,
-       req.params.id]
+       weightKg || null, deliveryType || 'vendor_default', deliveryCharge || null, brandId || null, req.params.id]
     );
 
     // Update images if provided
@@ -428,6 +481,25 @@ router.put('/:id', authenticate, requireRole('vendor'), async (req: AuthRequest,
     }
 
     return res.json({ status: 'success', message: 'Product updated.' });
+  } finally {
+    conn.release();
+  }
+});
+
+// PATCH /api/v1/products/:id/toggle-status - Vendor enable/disable product
+router.patch('/:id/toggle-status', authenticate, requireRole('vendor'), async (req: AuthRequest, res: Response) => {
+  const conn = await pool.getConnection();
+  try {
+    const [vendors] = await conn.query('SELECT id FROM vendors WHERE user_id = ?', [req.user!.userId]) as any[];
+    if (vendors.length === 0) return res.status(403).json({ status: 'error', message: 'Vendor not found', errors: [] });
+
+    const [products] = await conn.query('SELECT status FROM products WHERE id = ? AND vendor_id = ?', [req.params.id, vendors[0].id]) as any[];
+    if ((products as any[]).length === 0) return res.status(404).json({ status: 'error', message: 'Product not found', errors: [] });
+
+    const current = (products as any[])[0].status;
+    const newStatus = current === 'disabled' ? 'active' : 'disabled';
+    await conn.query('UPDATE products SET status = ? WHERE id = ? AND vendor_id = ?', [newStatus, req.params.id, vendors[0].id]);
+    return res.json({ status: 'success', message: `Product ${newStatus === 'disabled' ? 'disabled' : 'enabled'}.`, newStatus });
   } finally {
     conn.release();
   }

@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react'
-import { User, Mail, Phone, Shield, Calendar, MapPin, Plus, Trash2, Edit2, Check, FileText, Building2, Upload, Store } from 'lucide-react'
+import { User, Mail, Phone, Shield, Calendar, MapPin, Plus, Trash2, Edit2, Check, FileText, Building2, Upload, Store, Truck } from 'lucide-react'
 import api from '../api/client'
 import { useAuth } from '../context/AuthContext'
 import { CustomerLayout, VendorLayout, AdminLayout } from '../components/layout/DashboardLayout'
@@ -264,7 +264,8 @@ function VendorDocumentsSection() {
     gstCertificateUrl: '', fssaiCertificateUrl: '',
     bankAccountName: '', bankAccountNumber: '', bankIfsc: '', bankName: '',
     logoUrl: '', bannerUrl: '', returnPolicyEnabled: false, codEnabled: true,
-    signatureUrl: '', businessAddress: '', whatsappNumber: ''
+    signatureUrl: '', businessAddress: '', whatsappNumber: '',
+    deliveryType: 'per_product', deliveryChargePerProduct: '', deliveryChargePerKg: '', freeDeliveryAbove: '', deliveryDays: '5'
   })
 
   useEffect(() => {
@@ -288,6 +289,11 @@ function VendorDocumentsSection() {
         signatureUrl: v.signature_url || '',
         businessAddress: v.business_address || '',
         whatsappNumber: v.whatsapp_number || '',
+        deliveryType: v.delivery_type || 'per_product',
+        deliveryChargePerProduct: v.delivery_charge_per_product ? String(v.delivery_charge_per_product) : '',
+        deliveryChargePerKg: v.delivery_charge_per_kg ? String(v.delivery_charge_per_kg) : '',
+        freeDeliveryAbove: v.free_delivery_above ? String(v.free_delivery_above) : '',
+        deliveryDays: v.delivery_days ? String(v.delivery_days) : '5',
       })
     }).catch(() => {}).finally(() => setLoading(false))
   }, [])
@@ -473,6 +479,46 @@ function VendorDocumentsSection() {
               <label className="block text-xs font-medium text-gray-500 uppercase tracking-wide mb-1.5">Bank Name</label>
               <input className="input" value={form.bankName} onChange={e => setForm({ ...form, bankName: e.target.value })} placeholder="State Bank of India" />
             </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Delivery Settings */}
+      <div className="border border-gray-200 rounded-xl bg-white overflow-hidden">
+        <div className="px-6 py-4 border-b border-gray-100 bg-gray-50">
+          <h2 className="font-bold text-gray-900 flex items-center gap-2"><Truck size={16} className="text-primary-500" /> Delivery Charges</h2>
+        </div>
+        <div className="p-6 space-y-4">
+          <div>
+            <label className="block text-xs font-medium text-gray-500 uppercase tracking-wide mb-1.5">Delivery Calculation Type</label>
+            <select className="input" value={form.deliveryType} onChange={e => setForm({ ...form, deliveryType: e.target.value })}>
+              <option value="per_product">Per Product (fixed charge per item)</option>
+              <option value="per_kg">Per KG (charge based on product weight)</option>
+            </select>
+          </div>
+          {form.deliveryType === 'per_product' && (
+            <div>
+              <label className="block text-xs font-medium text-gray-500 uppercase tracking-wide mb-1.5">Charge Per Product (₹)</label>
+              <input type="number" className="input" value={form.deliveryChargePerProduct} onChange={e => setForm({ ...form, deliveryChargePerProduct: e.target.value })} placeholder="e.g. 50" min="0" />
+              <p className="text-xs text-gray-400 mt-1">This amount is charged for each item in the order</p>
+            </div>
+          )}
+          {form.deliveryType === 'per_kg' && (
+            <div>
+              <label className="block text-xs font-medium text-gray-500 uppercase tracking-wide mb-1.5">Charge Per KG (₹)</label>
+              <input type="number" className="input" value={form.deliveryChargePerKg} onChange={e => setForm({ ...form, deliveryChargePerKg: e.target.value })} placeholder="e.g. 30" min="0" />
+              <p className="text-xs text-gray-400 mt-1">Charge is calculated based on product weight (set weight when adding products)</p>
+            </div>
+          )}
+          <div>
+            <label className="block text-xs font-medium text-gray-500 uppercase tracking-wide mb-1.5">Free Delivery Above (₹) — optional</label>
+            <input type="number" className="input" value={form.freeDeliveryAbove} onChange={e => setForm({ ...form, freeDeliveryAbove: e.target.value })} placeholder="e.g. 999 (leave empty for no free delivery)" min="0" />
+            <p className="text-xs text-gray-400 mt-1">Orders above this amount get free delivery</p>
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-gray-500 uppercase tracking-wide mb-1.5">Estimated Delivery Days</label>
+            <input type="number" className="input" value={form.deliveryDays} onChange={e => setForm({ ...form, deliveryDays: e.target.value })} placeholder="e.g. 5" min="1" max="30" />
+            <p className="text-xs text-gray-400 mt-1">Customers will see "Delivery by [date]" on your products (1-30 days)</p>
           </div>
         </div>
       </div>

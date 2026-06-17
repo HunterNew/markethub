@@ -50,7 +50,7 @@ export default function Footer() {
             <h3 className="font-semibold text-white mb-3 text-sm">For Sellers</h3>
             <ul className="space-y-1.5 text-xs sm:text-sm">
               {[
-                { label: 'Start Selling', to: '/auth/register?role=vendor' },
+                { label: 'Start Selling', to: '/auth/register/vendor' },
                 { label: 'Vendor Dashboard', to: '/vendor' },
                 { label: 'Pricing & Fees', to: '#' },
               ].map(link => (
