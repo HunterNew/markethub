@@ -301,11 +301,9 @@ function VendorDocumentsSection() {
   const handleSave = async () => {
     setSaving(true)
     try {
-      console.log('[VENDOR PROFILE] Saving:', JSON.stringify({ logoUrl: form.logoUrl, bannerUrl: form.bannerUrl }))
       await api.put('/vendor/profile', form)
       toast.success('Vendor documents updated!')
     } catch (err: any) {
-      console.error('[VENDOR PROFILE] Save error:', err?.response?.data || err)
       toast.error('Failed to update')
     } finally { setSaving(false) }
   }

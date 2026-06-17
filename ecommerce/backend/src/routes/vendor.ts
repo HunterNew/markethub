@@ -26,7 +26,6 @@ router.get('/profile', authenticate, requireRole('vendor'), async (req: AuthRequ
 
 router.put('/profile', authenticate, requireRole('vendor'), async (req: AuthRequest, res: Response) => {
   const { gstNumber, fssaiNumber, gstCertificateUrl, fssaiCertificateUrl, bankAccountName, bankAccountNumber, bankIfsc, bankName, contactPhone, logoUrl, bannerUrl, returnPolicyEnabled, codEnabled, signatureUrl, businessAddress, whatsappNumber, deliveryType, deliveryChargePerProduct, deliveryChargePerKg, freeDeliveryAbove, deliveryDays } = req.body;
-  console.log('[VENDOR PROFILE PUT] logoUrl:', logoUrl, 'bannerUrl:', bannerUrl);
   const conn = await pool.getConnection();
   try {
     const vendor = await getVendor(conn, req.user!.userId);
@@ -63,7 +62,6 @@ router.put('/profile', authenticate, requireRole('vendor'), async (req: AuthRequ
       await conn.query(`UPDATE vendors SET ${updateFields.join(', ')} WHERE id = ?`, updateValues);
     }
 
-    console.log('[VENDOR PROFILE PUT] Updated vendor', vendor.id, 'fields:', updateFields.length, 'logo_url:', logoUrl || 'not changed', 'banner_url:', bannerUrl || 'not changed');
     return res.json({ status: 'success', message: 'Vendor profile updated.' });
   } finally {
     conn.release();

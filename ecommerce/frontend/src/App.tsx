@@ -310,15 +310,10 @@ export default function App() {
             } />
           </Routes>
           </Suspense>
-          <WhatsAppSupport />
           </ThemeProvider>
           </WishlistProvider>
         </CartProvider>
       </AuthProvider>
     </BrowserRouter>
   )
-}
-
-function WhatsAppSupport() {
-  return null
 }

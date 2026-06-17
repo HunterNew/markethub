@@ -589,8 +589,6 @@ router.post('/send-sms-otp', async (req: Request, res: Response) => {
     );
 
     // TODO: Integrate SMS provider (MSG91, Fast2SMS, Twilio)
-    // For now, log the OTP (remove in production)
-    console.log(`[SMS OTP] Phone: ${phone}, Code: ${code}`);
 
     return res.json({ status: 'success', message: 'OTP sent to your phone.' });
   } finally {

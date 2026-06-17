@@ -12,7 +12,6 @@ function getRazorpay() {
   if (!razorpayInstance) {
     const keyId = process.env.RAZORPAY_KEY_ID || '';
     const keySecret = process.env.RAZORPAY_KEY_SECRET || '';
-    console.log('[RAZORPAY] Initializing with key_id:', keyId ? keyId.substring(0, 10) + '...' : 'EMPTY');
     razorpayInstance = new Razorpay({
       key_id: keyId,
       key_secret: keySecret,
