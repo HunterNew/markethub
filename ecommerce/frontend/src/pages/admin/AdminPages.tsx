@@ -970,6 +970,52 @@ export function AdminWithdrawals() {
   )
 }
 
+// Recursive category tree item for admin
+function CategoryTreeItem({ cat, categories, depth, onAdd, onEdit, onDelete, onApprove, onReject }: { cat: any; categories: any[]; depth: number; onAdd: (parentId?: number) => void; onEdit: (cat: any) => void; onDelete: (id: number) => void; onApprove: (id: number) => void; onReject: (id: number) => void }) {
+  const [expanded, setExpanded] = useState(depth === 0)
+  const children = categories.filter(c => c.parent_id === cat.id)
+
+  return (
+    <div className={`${depth === 0 ? 'border border-gray-200 rounded-xl bg-white overflow-hidden' : ''}`}>
+      <div className={`flex items-center justify-between px-4 py-3 ${depth > 0 ? 'border-b border-gray-50' : ''}`} style={{ paddingLeft: `${depth * 20 + 16}px` }}>
+        <div className="flex items-center gap-2">
+          {children.length > 0 ? (
+            <button onClick={() => setExpanded(!expanded)} className="text-gray-400 hover:text-gray-600 p-0.5">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className={`transition-transform ${expanded ? 'rotate-90' : ''}`}><path d="M9 18l6-6-6-6"/></svg>
+            </button>
+          ) : <span className="w-5" />}
+          {depth > 0 && <span className="text-gray-300 text-xs">↳</span>}
+          <div>
+            <p className={`font-medium ${depth === 0 ? 'text-gray-900 text-sm' : 'text-gray-700 text-xs'}`}>{cat.name}</p>
+            {cat.vendor_name && <p className="text-[9px] text-gray-400">by {cat.vendor_name}</p>}
+          </div>
+        </div>
+        <div className="flex items-center gap-2">
+          <span className="text-[10px] text-gray-400">{cat.product_count || 0}</span>
+          {cat.status === 'pending' ? (
+            <div className="flex gap-1">
+              <button onClick={() => onApprove(cat.id)} className="text-[10px] bg-green-50 text-green-700 px-1.5 py-0.5 rounded font-medium">✓</button>
+              <button onClick={() => onReject(cat.id)} className="text-[10px] bg-red-50 text-red-700 px-1.5 py-0.5 rounded font-medium">✗</button>
+            </div>
+          ) : (
+            <span className={`text-[9px] px-1.5 py-0.5 rounded-full font-medium ${cat.status === 'active' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>{cat.status}</span>
+          )}
+          <button onClick={() => onAdd(cat.id)} className="p-1 hover:bg-gray-100 rounded text-primary-500" title="Add child"><Plus size={12} /></button>
+          <button onClick={() => onEdit(cat)} className="p-1 hover:bg-gray-100 rounded text-blue-500"><Edit2 size={11} /></button>
+          <button onClick={() => onDelete(cat.id)} className="p-1 hover:bg-red-50 rounded text-red-500"><Trash2 size={11} /></button>
+        </div>
+      </div>
+      {expanded && children.length > 0 && (
+        <div className={`${depth === 0 ? 'bg-gray-50 border-t border-gray-100' : ''}`}>
+          {children.map(child => (
+            <CategoryTreeItem key={child.id} cat={child} categories={categories} depth={depth + 1} onAdd={onAdd} onEdit={onEdit} onDelete={onDelete} onApprove={onApprove} onReject={onReject} />
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
 // ============ ADMIN CATEGORIES ============
 export function AdminCategories() {
   const [categories, setCategories] = useState<any[]>([])
@@ -1031,103 +1077,9 @@ export function AdminCategories() {
 
         {loading ? <Skeleton className="h-64 rounded-2xl" /> : (
           <div className="space-y-2">
-            {categories.filter(c => !c.parent_id).map(cat => {
-              const subs = categories.filter(c => c.parent_id === cat.id)
-              return (
-                <div key={cat.id} className="border border-gray-200 rounded-xl bg-white overflow-hidden">
-                  {/* Parent Category */}
-                  <div className="flex items-center justify-between px-5 py-4">
-                    <div className="flex items-center gap-3">
-                      {subs.length > 0 && (
-                        <button onClick={() => {
-                          const el = document.getElementById(`subs-${cat.id}`)
-                          if (el) el.classList.toggle('hidden')
-                        }} className="text-gray-400 hover:text-gray-600">
-                          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M6 9l6 6 6-6"/></svg>
-                        </button>
-                      )}
-                      {!subs.length && <div className="w-4" />}
-                      <div>
-                        <p className="font-semibold text-gray-900">{cat.name}</p>
-                        {cat.description && <p className="text-xs text-gray-400">{cat.description}</p>}
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-4">
-                      <span className="text-xs text-gray-400">{cat.product_count || 0} products</span>
-                      {cat.status === 'pending' ? (
-                        <span className="text-xs bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full font-medium">Pending</span>
-                      ) : (
-                        <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full font-medium">Active</span>
-                      )}
-                      <div className="flex gap-1.5">
-                        {cat.status === 'pending' && (
-                          <>
-                            <button onClick={async () => { await api.put(`/categories/${cat.id}/approve`, { status: 'active' }); toast.success('Approved'); load() }} className="text-xs bg-green-50 text-green-700 px-2 py-1 rounded-lg font-medium">Approve</button>
-                            <button onClick={async () => { await api.put(`/categories/${cat.id}/approve`, { status: 'rejected' }); toast.success('Rejected'); load() }} className="text-xs bg-red-50 text-red-700 px-2 py-1 rounded-lg font-medium">Reject</button>
-                          </>
-                        )}
-                        <button onClick={() => openAdd(cat.id)} className="p-1.5 hover:bg-gray-100 rounded-lg text-primary-500" title="Add subcategory"><Plus size={14} /></button>
-                        <button onClick={() => openEdit(cat)} className="p-1.5 hover:bg-gray-100 rounded-lg text-blue-500"><Edit2 size={14} /></button>
-                        <button onClick={() => handleDelete(cat.id)} className="p-1.5 hover:bg-red-50 rounded-lg text-red-500"><Trash2 size={14} /></button>
-                      </div>
-                    </div>
-                  </div>
-                  {/* Subcategories */}
-                  {subs.length > 0 && (
-                    <div id={`subs-${cat.id}`} className="border-t border-gray-100 bg-gray-50 px-5 py-2">
-                      {subs.map(sub => {
-                        const subSubs = categories.filter(c => c.parent_id === sub.id)
-                        return (
-                          <div key={sub.id}>
-                            <div className="flex items-center justify-between py-2 pl-7 border-b border-gray-100 last:border-0">
-                              <div className="flex items-center gap-2">
-                                <span className="text-gray-300">↳</span>
-                                <div>
-                                  <p className="text-sm font-medium text-gray-700">{sub.name}</p>
-                                  {sub.vendor_name && <p className="text-[10px] text-gray-400">by {sub.vendor_name}</p>}
-                                </div>
-                              </div>
-                              <div className="flex items-center gap-3">
-                                <span className="text-xs text-gray-400">{sub.product_count || 0}</span>
-                                {sub.status === 'pending' ? (
-                                  <div className="flex gap-1.5">
-                                    <button onClick={async () => { await api.put(`/categories/${sub.id}/approve`, { status: 'active' }); toast.success('Approved'); load() }} className="text-xs bg-green-50 text-green-700 px-2 py-1 rounded-lg font-medium">Approve</button>
-                                    <button onClick={async () => { await api.put(`/categories/${sub.id}/approve`, { status: 'rejected' }); toast.success('Rejected'); load() }} className="text-xs bg-red-50 text-red-700 px-2 py-1 rounded-lg font-medium">Reject</button>
-                                  </div>
-                                ) : (
-                                  <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full font-medium">Active</span>
-                                )}
-                                <button onClick={() => openAdd(sub.id)} className="p-1 hover:bg-gray-200 rounded text-primary-500" title="Add sub-sub category"><Plus size={12} /></button>
-                                <button onClick={() => openEdit(sub)} className="p-1 hover:bg-gray-200 rounded text-blue-500"><Edit2 size={12} /></button>
-                                <button onClick={() => handleDelete(sub.id)} className="p-1 hover:bg-red-100 rounded text-red-500"><Trash2 size={12} /></button>
-                              </div>
-                            </div>
-                            {/* Sub-sub categories (3rd level) */}
-                            {subSubs.length > 0 && (
-                              <div className="pl-14 py-1">
-                                {subSubs.map(ss => (
-                                  <div key={ss.id} className="flex items-center justify-between py-1.5">
-                                    <div className="flex items-center gap-2">
-                                      <span className="text-gray-200 text-xs">↳</span>
-                                      <p className="text-xs font-medium text-gray-600">{ss.name}</p>
-                                    </div>
-                                    <div className="flex items-center gap-2">
-                                      <span className="text-[10px] text-gray-400">{ss.product_count || 0}</span>
-                                      <button onClick={() => openEdit(ss)} className="p-0.5 hover:bg-gray-200 rounded text-blue-500"><Edit2 size={10} /></button>
-                                      <button onClick={() => handleDelete(ss.id)} className="p-0.5 hover:bg-red-100 rounded text-red-500"><Trash2 size={10} /></button>
-                                    </div>
-                                  </div>
-                                ))}
-                              </div>
-                            )}
-                          </div>
-                        )
-                      })}
-                    </div>
-                  )}
-                </div>
-              )
-            })}
+            {categories.filter(c => !c.parent_id).map(cat => (
+              <CategoryTreeItem key={cat.id} cat={cat} categories={categories} depth={0} onAdd={openAdd} onEdit={openEdit} onDelete={handleDelete} onApprove={async (id) => { await api.put(`/categories/${id}/approve`, { status: 'active' }); toast.success('Approved'); load() }} onReject={async (id) => { await api.put(`/categories/${id}/approve`, { status: 'rejected' }); toast.success('Rejected'); load() }} />
+            ))}
             {categories.length === 0 && <div className="p-8 text-center text-gray-400">No categories yet</div>}
           </div>
         )}
@@ -1142,19 +1094,20 @@ export function AdminCategories() {
               <label className="block text-sm font-medium text-gray-700 mb-1">Parent Category (optional)</label>
               <select className="input" value={form.parentId} onChange={e => setForm({ ...form, parentId: e.target.value })}>
                 <option value="">None (top-level category)</option>
-                {categories.filter(c => !c.parent_id && c.status === 'active').map(c => {
-                  const subs = categories.filter(s => s.parent_id === c.id && s.status === 'active')
-                  return (
-                    <React.Fragment key={c.id}>
-                      <option value={c.id}>{c.name}</option>
-                      {subs.map(sub => (
-                        <option key={sub.id} value={sub.id}>&nbsp;&nbsp;↳ {sub.name}</option>
-                      ))}
-                    </React.Fragment>
-                  )
-                })}
+                {(() => {
+                  // Recursive option builder for infinite depth
+                  const buildOptions = (parentId: number | null, depth: number): any[] => {
+                    return categories
+                      .filter(c => c.parent_id === parentId && c.status === 'active' && c.id !== editingCat?.id)
+                      .flatMap(c => [
+                        <option key={c.id} value={c.id}>{'—'.repeat(depth)} {c.name}</option>,
+                        ...buildOptions(c.id, depth + 1)
+                      ])
+                  }
+                  return buildOptions(null, 0)
+                })()}
               </select>
-              <p className="text-[10px] text-gray-400 mt-1">Select parent to create subcategory. Select a subcategory to create sub-sub category.</p>
+              <p className="text-[10px] text-gray-400 mt-1">Select any category as parent to create deeper nesting.</p>
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>

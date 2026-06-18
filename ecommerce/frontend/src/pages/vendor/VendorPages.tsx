@@ -340,8 +340,8 @@ export function VendorProducts() {
                 value={form.categoryId}
                 onChange={(val) => { setField('categoryId', val); setField('brandId', ''); loadBrands(val) }}
                 placeholder="Select category"
+                onRequestCategory={(parentId) => { setCatReqForm({ name: '', description: '', parentId: parentId ? String(parentId) : '' }); setShowCategoryRequest(true) }}
               />
-              <button type="button" onClick={() => setShowCategoryRequest(true)} className="text-xs text-primary-500 hover:text-primary-700 mt-1">Can't find your category? Request one →</button>
             </div>
             <div><label className="label">Brand (optional)</label>
               <select className="input" value={form.brandId} onChange={e => setField('brandId', e.target.value)}>
