@@ -43,9 +43,38 @@ export function AdminDashboard() {
           <StatCard icon={<TrendingUp size={22} />} label="Total Commissions" value={formatCurrency(summary?.totalCommissions || 0)} color="orange" />
           <StatCard icon={<ShoppingBag size={22} />} label="Total Orders" value={summary?.totalOrders || 0} color="blue" />
           <StatCard icon={<Users size={22} />} label="Active Vendors" value={summary?.activeVendors || 0} color="purple" />
-          <StatCard icon={<Users size={22} />} label="Total Customers" value={summary?.totalCustomers || 0} color="orange" />
           <StatCard icon={<Package size={22} />} label="Pending Products" value={summary?.pendingProducts || 0} color="blue" />
+          <StatCard icon={<Package size={22} />} label="Pending Categories" value={summary?.pendingCategories || 0} color="orange" />
         </div>
+
+        {/* Pending Notifications */}
+        {((summary?.pendingProducts || 0) > 0 || (summary?.pendingCategories || 0) > 0 || (summary?.pendingVendors || 0) > 0 || (summary?.pendingBrands || 0) > 0) && (
+          <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 mb-6">
+            <h3 className="text-sm font-bold text-amber-800 mb-2">⚠️ Requires Your Attention</h3>
+            <div className="flex flex-wrap gap-3">
+              {(summary?.pendingVendors || 0) > 0 && (
+                <a href="/admin/vendors" className="text-xs bg-white border border-amber-200 text-amber-700 px-3 py-1.5 rounded-lg font-medium hover:bg-amber-100 transition-colors">
+                  {summary.pendingVendors} Vendor{summary.pendingVendors > 1 ? 's' : ''} awaiting approval
+                </a>
+              )}
+              {(summary?.pendingProducts || 0) > 0 && (
+                <a href="/admin/products" className="text-xs bg-white border border-amber-200 text-amber-700 px-3 py-1.5 rounded-lg font-medium hover:bg-amber-100 transition-colors">
+                  {summary.pendingProducts} Product{summary.pendingProducts > 1 ? 's' : ''} awaiting approval
+                </a>
+              )}
+              {(summary?.pendingCategories || 0) > 0 && (
+                <a href="/admin/categories" className="text-xs bg-white border border-amber-200 text-amber-700 px-3 py-1.5 rounded-lg font-medium hover:bg-amber-100 transition-colors">
+                  {summary.pendingCategories} Category request{summary.pendingCategories > 1 ? 's' : ''} pending
+                </a>
+              )}
+              {(summary?.pendingBrands || 0) > 0 && (
+                <a href="/admin/brands" className="text-xs bg-white border border-amber-200 text-amber-700 px-3 py-1.5 rounded-lg font-medium hover:bg-amber-100 transition-colors">
+                  {summary.pendingBrands} Brand request{summary.pendingBrands > 1 ? 's' : ''} pending
+                </a>
+              )}
+            </div>
+          </div>
+        )}
 
         {/* Sales chart */}
         <div className="card p-6 mb-6">
@@ -1127,23 +1156,54 @@ export function AdminCategories() {
         {/* Category Requests from Vendors */}
         {catRequests.filter(r => r.status === 'pending').length > 0 && (
           <div className="mt-8">
-            <h2 className="text-lg font-bold text-gray-900 mb-4">Vendor Category Requests</h2>
+            <h2 className="text-lg font-bold text-gray-900 mb-1">Pending Category Requests</h2>
+            <p className="text-xs text-gray-500 mb-4">Vendors have requested these new categories/subcategories</p>
             <div className="space-y-3">
-              {catRequests.filter(r => r.status === 'pending').map(r => (
-                <div key={r.id} className="border border-gray-200 rounded-xl bg-white p-4 flex items-center justify-between">
-                  <div>
-                    <p className="font-medium text-gray-900">{r.name}</p>
-                    {r.description && <p className="text-xs text-gray-500">{r.description}</p>}
-                    <p className="text-xs text-gray-400 mt-1">From: {r.vendor_name}</p>
+              {catRequests.filter(r => r.status === 'pending').map(r => {
+                // Build parent path
+                const getPath = (parentId: number | null): string[] => {
+                  if (!parentId) return []
+                  const cat = categories.find(c => c.id === parentId)
+                  if (!cat) return []
+                  return [...getPath(cat.parent_id), cat.name]
+                }
+                const parentPath = getPath(r.parent_id)
+
+                return (
+                  <div key={r.id} className="border border-amber-200 rounded-xl bg-amber-50/50 p-4">
+                    <div className="flex items-start justify-between gap-4">
+                      <div className="flex-1">
+                        {/* Requested category name */}
+                        <p className="font-bold text-gray-900 text-sm">{r.name}</p>
+                        {r.description && <p className="text-xs text-gray-600 mt-0.5">{r.description}</p>}
+                        {/* Parent path */}
+                        <div className="flex items-center gap-1 mt-2 flex-wrap">
+                          <span className="text-[10px] text-gray-400 font-medium">Path:</span>
+                          {parentPath.length > 0 ? (
+                            parentPath.map((p, i) => (
+                              <span key={i} className="flex items-center gap-1">
+                                <span className="text-xs text-gray-600 bg-gray-100 px-1.5 py-0.5 rounded">{p}</span>
+                                <span className="text-gray-300 text-[10px]">›</span>
+                              </span>
+                            ))
+                          ) : (
+                            <span className="text-xs text-gray-500 italic">Top-level category</span>
+                          )}
+                          <span className="text-xs text-primary-600 font-semibold bg-primary-50 px-1.5 py-0.5 rounded">{r.name}</span>
+                        </div>
+                        {/* Vendor info */}
+                        <p className="text-[10px] text-gray-400 mt-2">Requested by: <span className="font-medium text-gray-600">{r.vendor_name || 'Unknown Vendor'}</span> • {r.created_at ? new Date(r.created_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : ''}</p>
+                      </div>
+                      <div className="flex gap-2 flex-shrink-0">
+                        <button onClick={async () => { await api.put(`/admin/category-requests/${r.id}`, { status: 'approved' }); toast.success('Category approved & created'); load() }}
+                          className="text-xs bg-green-500 text-white hover:bg-green-600 px-3 py-1.5 rounded-lg font-medium transition-colors">Approve</button>
+                        <button onClick={async () => { await api.put(`/admin/category-requests/${r.id}`, { status: 'rejected', adminNote: 'Not needed' }); toast.success('Request rejected'); load() }}
+                          className="text-xs bg-red-50 text-red-700 hover:bg-red-100 px-3 py-1.5 rounded-lg font-medium transition-colors">Reject</button>
+                      </div>
+                    </div>
                   </div>
-                  <div className="flex gap-2">
-                    <button onClick={async () => { await api.put(`/admin/category-requests/${r.id}`, { status: 'approved' }); toast.success('Category approved & created'); load() }}
-                      className="text-xs bg-green-50 text-green-700 hover:bg-green-100 px-3 py-1.5 rounded-lg font-medium">Approve</button>
-                    <button onClick={async () => { await api.put(`/admin/category-requests/${r.id}`, { status: 'rejected', adminNote: 'Not needed' }); toast.success('Request rejected'); load() }}
-                      className="text-xs bg-red-50 text-red-700 hover:bg-red-100 px-3 py-1.5 rounded-lg font-medium">Reject</button>
-                  </div>
-                </div>
-              ))}
+                )
+              })}
             </div>
           </div>
         )}

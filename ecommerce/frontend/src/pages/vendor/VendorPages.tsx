@@ -513,7 +513,17 @@ export function VendorProducts() {
               <label className="label">Parent Category *</label>
               <select className="input" value={catReqForm.parentId || ''} onChange={e => setCatReqForm(p => ({ ...p, parentId: e.target.value }))}>
                 <option value="">Select parent category</option>
-                {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                {(() => {
+                  const buildOptions = (parentId: number | null, depth: number): any[] => {
+                    return categories
+                      .filter(c => c.parent_id === parentId)
+                      .flatMap(c => [
+                        <option key={c.id} value={c.id}>{'— '.repeat(depth)}{c.name}</option>,
+                        ...buildOptions(c.id, depth + 1)
+                      ])
+                  }
+                  return buildOptions(null, 0)
+                })()}
               </select>
             </div>
             <div>
