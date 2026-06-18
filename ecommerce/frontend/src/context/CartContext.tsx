@@ -27,6 +27,8 @@ interface CartItem {
   free_delivery_above?: number
   product_delivery_type?: string
   product_delivery_charge?: number
+  unit?: string
+  unit_value?: number
 }
 
 interface GuestCartItem {

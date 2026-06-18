@@ -1075,30 +1075,54 @@ export function AdminCategories() {
                   {/* Subcategories */}
                   {subs.length > 0 && (
                     <div id={`subs-${cat.id}`} className="border-t border-gray-100 bg-gray-50 px-5 py-2">
-                      {subs.map(sub => (
-                        <div key={sub.id} className="flex items-center justify-between py-2 pl-7 border-b border-gray-100 last:border-0">
-                          <div className="flex items-center gap-2">
-                            <span className="text-gray-300">↳</span>
-                            <div>
-                              <p className="text-sm font-medium text-gray-700">{sub.name}</p>
-                              {sub.vendor_name && <p className="text-[10px] text-gray-400">by {sub.vendor_name}</p>}
-                            </div>
-                          </div>
-                          <div className="flex items-center gap-3">
-                            <span className="text-xs text-gray-400">{sub.product_count || 0}</span>
-                            {sub.status === 'pending' ? (
-                              <div className="flex gap-1.5">
-                                <button onClick={async () => { await api.put(`/categories/${sub.id}/approve`, { status: 'active' }); toast.success('Approved'); load() }} className="text-xs bg-green-50 text-green-700 px-2 py-1 rounded-lg font-medium">Approve</button>
-                                <button onClick={async () => { await api.put(`/categories/${sub.id}/approve`, { status: 'rejected' }); toast.success('Rejected'); load() }} className="text-xs bg-red-50 text-red-700 px-2 py-1 rounded-lg font-medium">Reject</button>
+                      {subs.map(sub => {
+                        const subSubs = categories.filter(c => c.parent_id === sub.id)
+                        return (
+                          <div key={sub.id}>
+                            <div className="flex items-center justify-between py-2 pl-7 border-b border-gray-100 last:border-0">
+                              <div className="flex items-center gap-2">
+                                <span className="text-gray-300">↳</span>
+                                <div>
+                                  <p className="text-sm font-medium text-gray-700">{sub.name}</p>
+                                  {sub.vendor_name && <p className="text-[10px] text-gray-400">by {sub.vendor_name}</p>}
+                                </div>
                               </div>
-                            ) : (
-                              <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full font-medium">Active</span>
+                              <div className="flex items-center gap-3">
+                                <span className="text-xs text-gray-400">{sub.product_count || 0}</span>
+                                {sub.status === 'pending' ? (
+                                  <div className="flex gap-1.5">
+                                    <button onClick={async () => { await api.put(`/categories/${sub.id}/approve`, { status: 'active' }); toast.success('Approved'); load() }} className="text-xs bg-green-50 text-green-700 px-2 py-1 rounded-lg font-medium">Approve</button>
+                                    <button onClick={async () => { await api.put(`/categories/${sub.id}/approve`, { status: 'rejected' }); toast.success('Rejected'); load() }} className="text-xs bg-red-50 text-red-700 px-2 py-1 rounded-lg font-medium">Reject</button>
+                                  </div>
+                                ) : (
+                                  <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full font-medium">Active</span>
+                                )}
+                                <button onClick={() => openAdd(sub.id)} className="p-1 hover:bg-gray-200 rounded text-primary-500" title="Add sub-sub category"><Plus size={12} /></button>
+                                <button onClick={() => openEdit(sub)} className="p-1 hover:bg-gray-200 rounded text-blue-500"><Edit2 size={12} /></button>
+                                <button onClick={() => handleDelete(sub.id)} className="p-1 hover:bg-red-100 rounded text-red-500"><Trash2 size={12} /></button>
+                              </div>
+                            </div>
+                            {/* Sub-sub categories (3rd level) */}
+                            {subSubs.length > 0 && (
+                              <div className="pl-14 py-1">
+                                {subSubs.map(ss => (
+                                  <div key={ss.id} className="flex items-center justify-between py-1.5">
+                                    <div className="flex items-center gap-2">
+                                      <span className="text-gray-200 text-xs">↳</span>
+                                      <p className="text-xs font-medium text-gray-600">{ss.name}</p>
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                      <span className="text-[10px] text-gray-400">{ss.product_count || 0}</span>
+                                      <button onClick={() => openEdit(ss)} className="p-0.5 hover:bg-gray-200 rounded text-blue-500"><Edit2 size={10} /></button>
+                                      <button onClick={() => handleDelete(ss.id)} className="p-0.5 hover:bg-red-100 rounded text-red-500"><Trash2 size={10} /></button>
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
                             )}
-                            <button onClick={() => openEdit(sub)} className="p-1 hover:bg-gray-200 rounded text-blue-500"><Edit2 size={12} /></button>
-                            <button onClick={() => handleDelete(sub.id)} className="p-1 hover:bg-red-100 rounded text-red-500"><Trash2 size={12} /></button>
                           </div>
-                        </div>
-                      ))}
+                        )
+                      })}
                     </div>
                   )}
                 </div>
@@ -1115,13 +1139,22 @@ export function AdminCategories() {
               <input className="input" value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} placeholder="e.g. Electronics" />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Parent Category (for subcategory)</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Parent Category (optional)</label>
               <select className="input" value={form.parentId} onChange={e => setForm({ ...form, parentId: e.target.value })}>
                 <option value="">None (top-level category)</option>
-                {categories.filter(c => !c.parent_id && c.status === 'active').map(c => (
-                  <option key={c.id} value={c.id}>{c.name}</option>
-                ))}
+                {categories.filter(c => !c.parent_id && c.status === 'active').map(c => {
+                  const subs = categories.filter(s => s.parent_id === c.id && s.status === 'active')
+                  return (
+                    <React.Fragment key={c.id}>
+                      <option value={c.id}>{c.name}</option>
+                      {subs.map(sub => (
+                        <option key={sub.id} value={sub.id}>&nbsp;&nbsp;↳ {sub.name}</option>
+                      ))}
+                    </React.Fragment>
+                  )
+                })}
               </select>
+              <p className="text-[10px] text-gray-400 mt-1">Select parent to create subcategory. Select a subcategory to create sub-sub category.</p>
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
