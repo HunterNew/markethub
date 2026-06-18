@@ -51,7 +51,7 @@ export default function ProductsPage() {
     if (rating) params.set('rating', rating)
     if (availability) params.set('availability', availability)
     params.set('page', String(page))
-    params.set('limit', '10')
+    params.set('limit', '20')
 
     api.get(`/products?${params}`).then(r => {
       setProducts(r.data.products || [])
@@ -89,8 +89,15 @@ export default function ProductsPage() {
           {expandedSections.category ? <ChevronUp size={14} className="text-gray-400" /> : <ChevronDown size={14} className="text-gray-400" />}
         </button>
         {expandedSections.category && (
-          <div className="mt-3">
-            {(() => {
+        <div className="mt-3">
+          {/* All Categories option */}
+          <div
+            className={`py-2.5 px-3 -mx-1 rounded-lg cursor-pointer text-sm transition-colors mb-1 ${!categoryId ? 'bg-primary-50 text-primary-600 font-semibold' : 'text-gray-600 hover:bg-primary-50 hover:text-primary-600'}`}
+            onClick={() => updateFilter('categoryId', '')}
+          >
+            All Categories
+          </div>
+          {(() => {
               // Determine navigation state
               const selectedCat = categories.find(c => String(c.id) === categoryId)
               const activeParent = selectedCat?.parent_id
@@ -120,7 +127,7 @@ export default function ProductsPage() {
                       {subs.map(sub => (
                         <div
                           key={sub.id}
-                          className={`py-2 px-2 rounded-md cursor-pointer text-sm transition-colors ${categoryId === String(sub.id) ? 'bg-primary-50 text-primary-700 font-medium' : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'}`}
+                          className={`py-2 px-2 rounded-md cursor-pointer text-sm transition-colors ${categoryId === String(sub.id) ? 'bg-primary-50 text-primary-600 font-medium' : 'text-gray-600 hover:bg-primary-50 hover:text-primary-600'}`}
                           onClick={() => updateFilter('categoryId', String(sub.id))}
                         >
                           {sub.name}
@@ -139,10 +146,10 @@ export default function ProductsPage() {
                     return (
                       <div
                         key={cat.id}
-                        className={`flex items-center justify-between py-2.5 px-2 -mx-1 rounded-lg cursor-pointer transition-colors ${categoryId === String(cat.id) ? 'bg-primary-50' : 'hover:bg-gray-50'}`}
+                        className={`flex items-center justify-between py-2.5 px-3 -mx-1 rounded-lg cursor-pointer transition-colors ${categoryId === String(cat.id) ? 'bg-primary-50 text-primary-600 font-semibold' : 'text-gray-600 hover:bg-primary-50 hover:text-primary-600'}`}
                         onClick={() => updateFilter('categoryId', categoryId === String(cat.id) ? '' : String(cat.id))}
                       >
-                        <span className={`text-sm ${categoryId === String(cat.id) ? 'font-semibold text-primary-700' : 'text-gray-700'}`}>{cat.name}</span>
+                        <span className={`text-sm ${categoryId === String(cat.id) ? 'font-semibold text-primary-600' : ''}`}>{cat.name}</span>
                         {subs.length > 0 && (
                           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-gray-400"><path d="M9 18l6-6-6-6"/></svg>
                         )}
@@ -152,7 +159,7 @@ export default function ProductsPage() {
                 </div>
               )
             })()}
-          </div>
+        </div>
         )}
       </div>
 
@@ -239,7 +246,7 @@ export default function ProductsPage() {
             {[4, 3, 2, 1].map(r => (
               <label
                 key={r}
-                className={`flex items-center gap-2 py-2 px-2 -mx-1 rounded-lg cursor-pointer transition-colors ${rating === String(r) ? 'bg-primary-50' : 'hover:bg-gray-50'}`}
+                className={`flex items-center gap-2 py-2 px-2 -mx-1 rounded-lg cursor-pointer transition-colors ${rating === String(r) ? 'bg-primary-50 text-primary-600' : 'hover:bg-primary-50 hover:text-primary-600'}`}
               >
                 <input
                   type="checkbox"
@@ -273,7 +280,7 @@ export default function ProductsPage() {
             ].map(opt => (
               <div
                 key={opt.value}
-                className={`py-2 px-2 -mx-1 rounded-lg cursor-pointer text-sm transition-colors ${availability === opt.value ? 'bg-primary-50 text-primary-700 font-medium' : 'text-gray-600 hover:bg-gray-50'}`}
+                className={`py-2 px-2 -mx-1 rounded-lg cursor-pointer text-sm transition-colors ${availability === opt.value ? 'bg-primary-50 text-primary-600 font-medium' : 'text-gray-600 hover:bg-primary-50 hover:text-primary-600'}`}
                 onClick={() => updateFilter('availability', availability === opt.value ? '' : opt.value)}
               >
                 {opt.label}
@@ -340,8 +347,8 @@ export default function ProductsPage() {
         <div className="flex gap-4">
           {/* Desktop Sidebar - full height left */}
           <aside className="hidden md:block w-52 lg:w-56 flex-shrink-0">
-            <div className="bg-white border border-gray-200 p-3">
-              <h3 className="text-xs font-bold text-gray-900 uppercase tracking-wide mb-3 flex items-center gap-1.5">
+            <div className="bg-white border border-gray-200 rounded-2xl p-4">
+              <h3 className="text-xs font-bold text-gray-900 uppercase tracking-wide mb-4 flex items-center gap-2">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><line x1="4" y1="6" x2="20" y2="6"/><line x1="4" y1="12" x2="14" y2="12"/><line x1="4" y1="18" x2="9" y2="18"/></svg>
                 Filters
               </h3>
@@ -398,8 +405,8 @@ export default function ProductsPage() {
             {/* Results count */}
             <p className="text-sm font-medium text-gray-900 mb-2">
               {search
-                ? <>Showing {products.length > 0 ? ((page - 1) * 10 + 1) : 0}–{Math.min(page * 10, pagination.total)} of {pagination.total} results for "{search}"</>
-                : <>Showing {products.length > 0 ? ((page - 1) * 10 + 1) : 0}–{Math.min(page * 10, pagination.total)} of {pagination.total} products</>
+                ? <>Showing {products.length > 0 ? ((page - 1) * 20 + 1) : 0}–{Math.min(page * 20, pagination.total)} of {pagination.total} results for "{search}"</>
+                : <>Showing {products.length > 0 ? ((page - 1) * 20 + 1) : 0}–{Math.min(page * 20, pagination.total)} of {pagination.total} products</>
               }
             </p>
 
@@ -408,14 +415,14 @@ export default function ProductsPage() {
               <span className="text-xs text-gray-500 font-medium py-2">Sort By</span>
               {[
                 { value: 'popular', label: 'Popularity' },
-                { value: 'price_asc', label: 'Price — Low to High' },
-                { value: 'price_desc', label: 'Price — High to Low' },
-                { value: 'newest', label: 'Newest First' },
+                { value: 'price_asc', label: 'Price ↑' },
+                { value: 'price_desc', label: 'Price ↓' },
+                { value: 'newest', label: 'Newest' },
               ].map(opt => (
                 <button
                   key={opt.value}
                   onClick={() => updateFilter('sort', opt.value)}
-                  className={`text-xs py-2 border-b-2 transition-colors ${sort === opt.value ? 'border-primary-500 text-primary-600 font-medium' : 'border-transparent text-gray-500 hover:text-gray-900'}`}
+                  className={`text-xs py-1.5 px-3 rounded-full transition-colors ${sort === opt.value ? 'bg-primary-500 text-white font-medium' : 'text-gray-500 hover:text-primary-600 hover:bg-primary-50'}`}
                 >
                   {opt.label}
                 </button>
