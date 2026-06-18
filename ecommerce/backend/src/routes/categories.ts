@@ -88,6 +88,19 @@ router.put('/:id/approve', authenticate, requireRole('admin'), async (req: AuthR
   }
 });
 
+// Toggle category enable/disable
+router.patch('/:id/toggle', authenticate, requireRole('admin'), async (req: AuthRequest, res: Response) => {
+  const conn = await pool.getConnection();
+  try {
+    const [rows] = await conn.query('SELECT status FROM categories WHERE id = ?', [req.params.id]) as any[];
+    if ((rows as any[]).length === 0) return res.status(404).json({ status: 'error', message: 'Category not found', errors: [] });
+    const current = (rows as any[])[0].status;
+    const newStatus = current === 'disabled' ? 'active' : 'disabled';
+    await conn.query('UPDATE categories SET status = ? WHERE id = ?', [newStatus, req.params.id]);
+    return res.json({ status: 'success', message: `Category ${newStatus === 'disabled' ? 'disabled' : 'enabled'}.`, newStatus });
+  } finally { conn.release(); }
+});
+
 router.put('/:id', authenticate, requireRole('admin'), async (req: AuthRequest, res: Response) => {
   const { name, description, imageUrl } = req.body;
   const conn = await pool.getConnection();

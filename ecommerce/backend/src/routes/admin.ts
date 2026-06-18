@@ -165,6 +165,8 @@ router.get('/reports/summary', authenticate, requireRole('admin'), async (req: A
     const [customers] = await conn.query(`SELECT COUNT(*) as total_customers FROM users WHERE role = 'customer'`) as any[];
     const [pendingProducts] = await conn.query(`SELECT COUNT(*) as pending_products FROM products WHERE status = 'pending_approval'`) as any[];
     const [pendingCategories] = await conn.query(`SELECT COUNT(*) as pending_categories FROM categories WHERE status = 'pending'`) as any[];
+    const [pendingCatRequests] = await conn.query(`SELECT COUNT(*) as cnt FROM category_requests WHERE status = 'pending'`) as any[];
+    const totalPendingCats = (pendingCategories as any[])[0].pending_categories + ((pendingCatRequests as any[])[0]?.cnt || 0);
     const [pendingVendors] = await conn.query(`SELECT COUNT(*) as pending_vendors FROM vendors WHERE status = 'pending'`) as any[];
     const [pendingBrands] = await conn.query(`SELECT COUNT(*) as pending_brands FROM brand_requests WHERE status = 'pending'`) as any[];
 
@@ -177,7 +179,7 @@ router.get('/reports/summary', authenticate, requireRole('admin'), async (req: A
         activeVendors: vendors[0].active_vendors,
         totalCustomers: customers[0].total_customers,
         pendingProducts: pendingProducts[0].pending_products,
-        pendingCategories: pendingCategories[0].pending_categories,
+        pendingCategories: totalPendingCats,
         pendingVendors: pendingVendors[0].pending_vendors,
         pendingBrands: pendingBrands[0].pending_brands,
       },

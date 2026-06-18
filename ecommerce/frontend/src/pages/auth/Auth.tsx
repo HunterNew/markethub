@@ -4,8 +4,6 @@ import { Eye, EyeOff, Store, Mail, Lock, User, ArrowLeft, CheckCircle, Phone, Fi
 import { useAuth } from '../../context/AuthContext'
 import toast from '../../components/ui/Toast'
 import api from '../../api/client'
-import { sendPhoneOTP, verifyPhoneOTP } from '../../utils/firebase'
-import type { ConfirmationResult } from 'firebase/auth'
 
 export function LoginPage() {
   const { login } = useAuth()

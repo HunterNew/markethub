@@ -1000,7 +1000,7 @@ export function AdminWithdrawals() {
 }
 
 // Recursive category tree item for admin
-function CategoryTreeItem({ cat, categories, depth, onAdd, onEdit, onDelete, onApprove, onReject }: { cat: any; categories: any[]; depth: number; onAdd: (parentId?: number) => void; onEdit: (cat: any) => void; onDelete: (id: number) => void; onApprove: (id: number) => void; onReject: (id: number) => void }) {
+function CategoryTreeItem({ cat, categories, depth, onAdd, onEdit, onDelete, onApprove, onReject, onToggle }: { cat: any; categories: any[]; depth: number; onAdd: (parentId?: number) => void; onEdit: (cat: any) => void; onDelete: (id: number) => void; onApprove: (id: number) => void; onReject: (id: number) => void; onToggle: (id: number) => void }) {
   const [expanded, setExpanded] = useState(depth === 0)
   const children = categories.filter(c => c.parent_id === cat.id)
 
@@ -1030,6 +1030,8 @@ function CategoryTreeItem({ cat, categories, depth, onAdd, onEdit, onDelete, onA
             <span className={`text-[9px] px-1.5 py-0.5 rounded-full font-medium ${cat.status === 'active' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>{cat.status}</span>
           )}
           <button onClick={() => onAdd(cat.id)} className="p-1 hover:bg-gray-100 rounded text-primary-500" title="Add child"><Plus size={12} /></button>
+          {cat.status === 'active' && <button onClick={() => onToggle(cat.id)} className="p-1 hover:bg-yellow-50 rounded text-yellow-600" title="Disable"><ToggleRight size={12} /></button>}
+          {cat.status === 'disabled' && <button onClick={() => onToggle(cat.id)} className="p-1 hover:bg-green-50 rounded text-green-600" title="Enable"><ToggleLeft size={12} /></button>}
           <button onClick={() => onEdit(cat)} className="p-1 hover:bg-gray-100 rounded text-blue-500"><Edit2 size={11} /></button>
           <button onClick={() => onDelete(cat.id)} className="p-1 hover:bg-red-50 rounded text-red-500"><Trash2 size={11} /></button>
         </div>
@@ -1037,7 +1039,7 @@ function CategoryTreeItem({ cat, categories, depth, onAdd, onEdit, onDelete, onA
       {expanded && children.length > 0 && (
         <div className={`${depth === 0 ? 'bg-gray-50 border-t border-gray-100' : ''}`}>
           {children.map(child => (
-            <CategoryTreeItem key={child.id} cat={child} categories={categories} depth={depth + 1} onAdd={onAdd} onEdit={onEdit} onDelete={onDelete} onApprove={onApprove} onReject={onReject} />
+            <CategoryTreeItem key={child.id} cat={child} categories={categories} depth={depth + 1} onAdd={onAdd} onEdit={onEdit} onDelete={onDelete} onApprove={onApprove} onReject={onReject} onToggle={onToggle} />
           ))}
         </div>
       )}
@@ -1053,6 +1055,7 @@ export function AdminCategories() {
   const [editingCat, setEditingCat] = useState<any>(null)
   const [form, setForm] = useState({ name: '', description: '', imageUrl: '', parentId: '' })
   const [catRequests, setCatRequests] = useState<any[]>([])
+  const [catFilter, setCatFilter] = useState('all')
 
   const load = () => {
     setLoading(true)
@@ -1101,15 +1104,196 @@ export function AdminCategories() {
             <h1 className="text-2xl font-bold text-gray-900">Categories</h1>
             <p className="text-gray-500 text-sm mt-1">{categories.length} categories</p>
           </div>
-          <button onClick={() => openAdd()} className="btn-primary"><Plus size={16} /> Add Category</button>
+          <div className="flex items-center gap-2">
+            {catRequests.filter(r => r.status === 'pending').length > 0 && (
+              <span className="text-xs bg-amber-100 text-amber-700 px-2.5 py-1 rounded-full font-medium">
+                {catRequests.filter(r => r.status === 'pending').length} Pending Request{catRequests.filter(r => r.status === 'pending').length > 1 ? 's' : ''}
+              </span>
+            )}
+            <button onClick={() => openAdd()} className="btn-primary"><Plus size={16} /> Add Category</button>
+          </div>
         </div>
 
-        {loading ? <Skeleton className="h-64 rounded-2xl" /> : (
+        {/* Filter Tabs */}
+        <div className="flex gap-2 mb-5 flex-wrap">
+          {[
+            { key: 'all', label: 'All' },
+            { key: 'requests', label: 'Requests' },
+            { key: 'disabled', label: 'Disabled' },
+            { key: 'rejected', label: 'Rejected' },
+          ].map(f => {
+            const reqCount = f.key === 'requests' ? (catRequests.filter(r => r.status === 'pending').length + categories.filter(c => c.status === 'pending').length) : 0
+            return (
+              <button key={f.key} onClick={() => setCatFilter(f.key)}
+                className={`px-4 py-1.5 rounded-full text-sm font-medium transition-colors ${catFilter === f.key ? 'bg-primary-500 text-white' : 'bg-white border border-gray-200 text-gray-600 hover:bg-gray-50'}`}>
+                {f.label}
+                {reqCount > 0 && (
+                  <span className="ml-1.5 bg-red-500 text-white text-[10px] w-4 h-4 rounded-full inline-flex items-center justify-center">{reqCount}</span>
+                )}
+              </button>
+            )
+          })}
+        </div>
+
+        {/* Vendor Category Requests - show when 'requests' or 'all' tab */}
+        {(catFilter === 'all' || catFilter === 'requests') && catRequests.filter(r => r.status === 'pending').length > 0 && (
+          <div className="mb-6">
+            <h2 className="text-sm font-bold text-gray-900 mb-3 flex items-center gap-2">
+              <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
+              Pending Requests ({catRequests.filter(r => r.status === 'pending').length})
+            </h2>
+            <div className="space-y-2.5">
+              {catRequests.filter(r => r.status === 'pending').map(r => {
+                // Build full parent path
+                const getPath = (parentId: number | null): string[] => {
+                  if (!parentId) return []
+                  const cat = categories.find(c => c.id === parentId)
+                  if (!cat) return []
+                  return [...getPath(cat.parent_id), cat.name]
+                }
+                const parentPath = getPath(r.parent_id)
+
+                return (
+                  <div key={r.id} className="border border-amber-200 rounded-xl bg-amber-50/50 p-4">
+                    <div className="flex items-start justify-between gap-4">
+                      <div className="flex-1">
+                        <p className="font-bold text-gray-900 text-sm">"{r.name}"</p>
+                        {r.description && <p className="text-xs text-gray-600 mt-0.5">{r.description}</p>}
+                        {/* Full parent path */}
+                        <div className="flex items-center gap-1 mt-2 flex-wrap">
+                          <span className="text-[10px] text-gray-400 font-medium uppercase">Will be under:</span>
+                          {parentPath.length > 0 ? (
+                            <>
+                              {parentPath.map((p, i) => (
+                                <span key={i} className="flex items-center gap-1">
+                                  <span className="text-xs text-gray-600 bg-white border border-gray-200 px-1.5 py-0.5 rounded">{p}</span>
+                                  <span className="text-gray-300 text-xs">›</span>
+                                </span>
+                              ))}
+                              <span className="text-xs text-primary-600 font-bold bg-primary-50 border border-primary-200 px-1.5 py-0.5 rounded">{r.name}</span>
+                            </>
+                          ) : (
+                            <span className="text-xs text-gray-500 italic">New top-level category</span>
+                          )}
+                        </div>
+                        <p className="text-[10px] text-gray-400 mt-2">
+                          Requested by: <span className="font-medium text-gray-600">{r.vendor_name || 'Vendor'}</span>
+                          {r.created_at && <span> • {new Date(r.created_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</span>}
+                        </p>
+                      </div>
+                      <div className="flex gap-2 flex-shrink-0">
+                        <button onClick={async () => { await api.put(`/admin/category-requests/${r.id}`, { status: 'approved' }); toast.success('Category approved & created'); load() }}
+                          className="text-xs bg-green-500 text-white hover:bg-green-600 px-3 py-1.5 rounded-lg font-medium transition-colors">✓ Approve</button>
+                        <button onClick={async () => { await api.put(`/admin/category-requests/${r.id}`, { status: 'rejected', adminNote: 'Not needed' }); toast.success('Request rejected'); load() }}
+                          className="text-xs bg-white text-red-600 border border-red-200 hover:bg-red-50 px-3 py-1.5 rounded-lg font-medium transition-colors">✗ Reject</button>
+                      </div>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+        )}
+
+        {loading ? <Skeleton className="h-64 rounded-2xl" /> : catFilter === 'requests' ? (
+          /* Requests tab - show pending from both sources */
+          (() => {
+            // Combine: category_requests (pending) + categories with status='pending'
+            const pendingFromRequests = catRequests.filter(r => r.status === 'pending').map(r => ({ ...r, source: 'request' }))
+            const pendingFromCategories = categories.filter(c => c.status === 'pending').map(c => ({ ...c, source: 'category', name: c.name, vendor_name: c.vendor_name, parent_id: c.parent_id, created_at: c.created_at }))
+            const allPending = [...pendingFromCategories, ...pendingFromRequests]
+            // Also show history (approved/rejected requests)
+            const history = catRequests.filter(r => r.status !== 'pending').map(r => ({ ...r, source: 'request' }))
+
+            return allPending.length === 0 && history.length === 0 ? (
+              <div className="p-8 text-center text-gray-400">No category requests</div>
+            ) : (
+              <div className="space-y-3">
+                {allPending.length > 0 && <h3 className="text-xs font-bold text-amber-700 uppercase tracking-wide">Pending ({allPending.length})</h3>}
+                {allPending.map((r, idx) => {
+                  const getPath = (parentId: number | null): string[] => {
+                    if (!parentId) return []
+                    const cat = categories.find(c => c.id === parentId)
+                    if (!cat) return []
+                    return [...getPath(cat.parent_id), cat.name]
+                  }
+                  const parentPath = getPath(r.parent_id || null)
+                  return (
+                    <div key={`${r.source}-${r.id}-${idx}`} className="border border-amber-200 rounded-xl bg-amber-50/50 p-4">
+                      <div className="flex items-start justify-between gap-4">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2">
+                            <p className="font-bold text-gray-900 text-sm">"{r.name}"</p>
+                            <span className="text-[10px] bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded-full font-medium">pending</span>
+                          </div>
+                          {r.description && <p className="text-xs text-gray-600 mt-0.5">{r.description}</p>}
+                          <div className="flex items-center gap-1 mt-2 flex-wrap">
+                            <span className="text-[10px] text-gray-400 font-medium">Under:</span>
+                            {parentPath.length > 0 ? (
+                              <>
+                                {parentPath.map((p, i) => (
+                                  <span key={i} className="flex items-center gap-1">
+                                    <span className="text-xs text-gray-600 bg-white border border-gray-200 px-1.5 py-0.5 rounded">{p}</span>
+                                    <span className="text-gray-300 text-xs">›</span>
+                                  </span>
+                                ))}
+                                <span className="text-xs text-primary-600 font-bold bg-primary-50 border border-primary-200 px-1.5 py-0.5 rounded">{r.name}</span>
+                              </>
+                            ) : (
+                              <span className="text-xs text-gray-500 italic">Top-level category</span>
+                            )}
+                          </div>
+                          <p className="text-[10px] text-gray-400 mt-2">By: <span className="font-medium text-gray-600">{r.vendor_name || 'Vendor'}</span>{r.created_at && ` • ${new Date(r.created_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}`}</p>
+                        </div>
+                        <div className="flex gap-2 flex-shrink-0">
+                          {r.source === 'category' ? (
+                            <>
+                              <button onClick={async () => { await api.put(`/categories/${r.id}/approve`, { status: 'active' }); toast.success('Approved'); load() }}
+                                className="text-xs bg-green-500 text-white hover:bg-green-600 px-3 py-1.5 rounded-lg font-medium">✓ Approve</button>
+                              <button onClick={async () => { await api.put(`/categories/${r.id}/approve`, { status: 'rejected' }); toast.success('Rejected'); load() }}
+                                className="text-xs bg-white text-red-600 border border-red-200 hover:bg-red-50 px-3 py-1.5 rounded-lg font-medium">✗ Reject</button>
+                            </>
+                          ) : (
+                            <>
+                              <button onClick={async () => { await api.put(`/admin/category-requests/${r.id}`, { status: 'approved' }); toast.success('Approved'); load() }}
+                                className="text-xs bg-green-500 text-white hover:bg-green-600 px-3 py-1.5 rounded-lg font-medium">✓ Approve</button>
+                              <button onClick={async () => { await api.put(`/admin/category-requests/${r.id}`, { status: 'rejected', adminNote: '' }); toast.success('Rejected'); load() }}
+                                className="text-xs bg-white text-red-600 border border-red-200 hover:bg-red-50 px-3 py-1.5 rounded-lg font-medium">✗ Reject</button>
+                            </>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  )
+                })}
+                {history.length > 0 && (
+                  <>
+                    <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wide mt-6">History</h3>
+                    {history.map(r => (
+                      <div key={`h-${r.id}`} className={`border rounded-xl p-3 ${r.status === 'approved' ? 'border-green-100 bg-green-50/30' : 'border-red-100 bg-red-50/30'}`}>
+                        <div className="flex items-center gap-2">
+                          <p className="text-sm font-medium text-gray-700">{r.name}</p>
+                          <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium ${r.status === 'approved' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>{r.status}</span>
+                          <span className="text-[10px] text-gray-400 ml-auto">{r.vendor_name}</span>
+                        </div>
+                      </div>
+                    ))}
+                  </>
+                )}
+              </div>
+            )
+          })()
+        ) : (
           <div className="space-y-2">
-            {categories.filter(c => !c.parent_id).map(cat => (
-              <CategoryTreeItem key={cat.id} cat={cat} categories={categories} depth={0} onAdd={openAdd} onEdit={openEdit} onDelete={handleDelete} onApprove={async (id) => { await api.put(`/categories/${id}/approve`, { status: 'active' }); toast.success('Approved'); load() }} onReject={async (id) => { await api.put(`/categories/${id}/approve`, { status: 'rejected' }); toast.success('Rejected'); load() }} />
+            {categories.filter(c => !c.parent_id).filter(c => {
+              if (catFilter === 'all') return c.status !== 'pending'
+              if (catFilter === 'disabled') return c.status === 'disabled'
+              if (catFilter === 'rejected') return c.status === 'rejected'
+              return true
+            }).map(cat => (
+              <CategoryTreeItem key={cat.id} cat={cat} categories={categories} depth={0} onAdd={openAdd} onEdit={openEdit} onDelete={handleDelete} onApprove={async (id) => { await api.put(`/categories/${id}/approve`, { status: 'active' }); toast.success('Approved'); load() }} onReject={async (id) => { await api.put(`/categories/${id}/approve`, { status: 'rejected' }); toast.success('Rejected'); load() }} onToggle={async (id) => { await api.patch(`/categories/${id}/toggle`); toast.success('Status updated'); load() }} />
             ))}
-            {categories.length === 0 && <div className="p-8 text-center text-gray-400">No categories yet</div>}
+            {categories.filter(c => !c.parent_id).filter(c => catFilter === 'all' ? c.status !== 'pending' : c.status === catFilter).length === 0 && <div className="p-8 text-center text-gray-400">No categories found</div>}
           </div>
         )}
 
@@ -1153,60 +1337,6 @@ export function AdminCategories() {
           </div>
         </Modal>
 
-        {/* Category Requests from Vendors */}
-        {catRequests.filter(r => r.status === 'pending').length > 0 && (
-          <div className="mt-8">
-            <h2 className="text-lg font-bold text-gray-900 mb-1">Pending Category Requests</h2>
-            <p className="text-xs text-gray-500 mb-4">Vendors have requested these new categories/subcategories</p>
-            <div className="space-y-3">
-              {catRequests.filter(r => r.status === 'pending').map(r => {
-                // Build parent path
-                const getPath = (parentId: number | null): string[] => {
-                  if (!parentId) return []
-                  const cat = categories.find(c => c.id === parentId)
-                  if (!cat) return []
-                  return [...getPath(cat.parent_id), cat.name]
-                }
-                const parentPath = getPath(r.parent_id)
-
-                return (
-                  <div key={r.id} className="border border-amber-200 rounded-xl bg-amber-50/50 p-4">
-                    <div className="flex items-start justify-between gap-4">
-                      <div className="flex-1">
-                        {/* Requested category name */}
-                        <p className="font-bold text-gray-900 text-sm">{r.name}</p>
-                        {r.description && <p className="text-xs text-gray-600 mt-0.5">{r.description}</p>}
-                        {/* Parent path */}
-                        <div className="flex items-center gap-1 mt-2 flex-wrap">
-                          <span className="text-[10px] text-gray-400 font-medium">Path:</span>
-                          {parentPath.length > 0 ? (
-                            parentPath.map((p, i) => (
-                              <span key={i} className="flex items-center gap-1">
-                                <span className="text-xs text-gray-600 bg-gray-100 px-1.5 py-0.5 rounded">{p}</span>
-                                <span className="text-gray-300 text-[10px]">›</span>
-                              </span>
-                            ))
-                          ) : (
-                            <span className="text-xs text-gray-500 italic">Top-level category</span>
-                          )}
-                          <span className="text-xs text-primary-600 font-semibold bg-primary-50 px-1.5 py-0.5 rounded">{r.name}</span>
-                        </div>
-                        {/* Vendor info */}
-                        <p className="text-[10px] text-gray-400 mt-2">Requested by: <span className="font-medium text-gray-600">{r.vendor_name || 'Unknown Vendor'}</span> • {r.created_at ? new Date(r.created_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : ''}</p>
-                      </div>
-                      <div className="flex gap-2 flex-shrink-0">
-                        <button onClick={async () => { await api.put(`/admin/category-requests/${r.id}`, { status: 'approved' }); toast.success('Category approved & created'); load() }}
-                          className="text-xs bg-green-500 text-white hover:bg-green-600 px-3 py-1.5 rounded-lg font-medium transition-colors">Approve</button>
-                        <button onClick={async () => { await api.put(`/admin/category-requests/${r.id}`, { status: 'rejected', adminNote: 'Not needed' }); toast.success('Request rejected'); load() }}
-                          className="text-xs bg-red-50 text-red-700 hover:bg-red-100 px-3 py-1.5 rounded-lg font-medium transition-colors">Reject</button>
-                      </div>
-                    </div>
-                  </div>
-                )
-              })}
-            </div>
-          </div>
-        )}
       </div>
     </AdminLayout>
   )
@@ -1980,7 +2110,7 @@ export function AdminBrands() {
   const loadBrands = () => {
     setLoading(true)
     Promise.all([
-      api.get('/brands'),
+      api.get('/brands?showAll=true'),
       api.get('/categories'),
       api.get('/brands/requests'),
     ]).then(([b, c, r]) => {
@@ -2038,6 +2168,14 @@ export function AdminBrands() {
     await api.delete(`/brands/${id}`).catch(() => {})
     toast.success('Brand deleted')
     loadBrands()
+  }
+
+  const toggleBrand = async (id: number, currentStatus: string) => {
+    try {
+      await api.patch(`/brands/${id}/toggle`)
+      toast.success(currentStatus === 'active' ? 'Brand disabled' : 'Brand enabled')
+      loadBrands()
+    } catch { toast.error('Failed to update brand') }
   }
 
   const approveRequest = async (id: number) => {
@@ -2101,6 +2239,9 @@ export function AdminBrands() {
                     <td className="table-cell px-4 text-sm">{b.product_count || 0}</td>
                     <td className="table-cell px-4">
                       <div className="flex gap-2">
+                        <button onClick={() => toggleBrand(b.id, b.status)} className={`p-1.5 rounded-lg transition-colors ${b.status === 'active' ? 'hover:bg-yellow-50 text-yellow-600' : 'hover:bg-green-50 text-green-600'}`} title={b.status === 'active' ? 'Disable' : 'Enable'}>
+                          {b.status === 'active' ? <ToggleRight size={14} /> : <ToggleLeft size={14} />}
+                        </button>
                         <button onClick={() => openEdit(b)} className="p-1.5 hover:bg-gray-100 rounded-lg text-gray-500"><Edit2 size={14} /></button>
                         <button onClick={() => deleteBrand(b.id)} className="p-1.5 hover:bg-red-50 rounded-lg text-red-500"><Trash2 size={14} /></button>
                       </div>

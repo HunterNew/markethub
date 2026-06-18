@@ -206,7 +206,7 @@ export default function ProductsPage() {
             {expandedSections.brand ? <ChevronUp size={14} className="text-gray-400" /> : <ChevronDown size={14} className="text-gray-400" />}
           </button>
           {expandedSections.brand && (
-            <div className="mt-3 space-y-1 max-h-48 overflow-y-auto">
+            <div className="mt-3 space-y-1">
               {brands.map(b => {
                 const selectedBrands = brandIds ? brandIds.split(',').map(Number) : []
                 const isChecked = selectedBrands.includes(b.id)
