@@ -1,19 +1,18 @@
 import fs from 'fs';
 import path from 'path';
-import mysql from 'mysql2/promise';
+//import mysql from 'mysql2/promise';
+import { Client } from "pg";
 import dotenv from 'dotenv';
 
 dotenv.config();
 
 async function migrate() {
   const connection = await mysql.createConnection({
-    host: process.env.DB_HOST || 'localhost',
-    port: parseInt(process.env.DB_PORT || '3306'),
-    user: process.env.DB_USER || 'root',
-    password: process.env.DB_PASS || '',
-    // multipleStatements not needed — statements are executed individually
-  });
-
+  host: process.env.DB_HOST,
+  user: process.env.DB_USER,
+  password: process.env.DB_PASSWORD,
+  database: process.env.DB_NAME,
+});
   try {
     // Create database if not exists
     await connection.query(
