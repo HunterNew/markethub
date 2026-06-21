@@ -11,12 +11,12 @@ async function seed() {
     user: process.env.DB_USER || 'root',
     password: process.env.DB_PASS || '',
     database: process.env.DB_NAME || 'multivendor_ecommerce',
+    ssl: process.env.DB_SSL === 'true' ? { rejectUnauthorized: true } : undefined,
   });
 
   try {
     console.log('🌱 Seeding database...');
 
-    // Clear all data in reverse dependency order so seed is idempotent
     console.log('🗑️  Clearing existing data...');
     await connection.query('SET FOREIGN_KEY_CHECKS = 0');
     const tables = [

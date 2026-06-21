@@ -11,6 +11,7 @@ async function migrate() {
     port: parseInt(process.env.DB_PORT || '3306'),
     user: process.env.DB_USER || 'root',
     password: process.env.DB_PASS || '',
+    ssl: process.env.DB_SSL === 'true' ? { rejectUnauthorized: true } : undefined,
     // multipleStatements not needed — statements are executed individually
   });
 
@@ -48,8 +49,6 @@ async function migrate() {
 
       console.log(`▶  Running migration: ${file}`);
       const sql = fs.readFileSync(path.join(migrationsDir, file), 'utf-8');
-      // Split into individual statements and execute one at a time
-      // to avoid multi-statement parsing issues with reserved words
       const statements = sql
         .split(/;\s*\n/)
         .map(s => s.replace(/--.*$/gm, '').trim())
