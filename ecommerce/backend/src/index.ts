@@ -117,7 +117,7 @@ app.get('/api/v1/settings/theme', async (req, res) => {
   const { default: pool } = await import('./db/pool');
   const conn = await pool.getConnection();
   try {
-    const [rows] = await conn.query('SELECT value FROM platform_settings WHERE `key` = "site_theme"') as any[];
+    const [rows] = await conn.query('SELECT value FROM platform_settings WHERE "key" = \'site_theme\'') as any[];
     const theme = (rows as any[]).length > 0 ? JSON.parse((rows as any[])[0].value) : 'default';
     return res.json({ status: 'success', theme });
   } catch {

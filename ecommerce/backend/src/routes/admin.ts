@@ -138,7 +138,7 @@ router.patch('/products/:id/reject', authenticate, requireRole('admin'), async (
 router.post('/products/:id/feature', authenticate, requireRole('admin'), async (req: AuthRequest, res: Response) => {
   const conn = await pool.getConnection();
   try {
-    await conn.query('INSERT IGNORE INTO featured_products (product_id) VALUES (?)', [req.params.id]);
+    await conn.query('INSERT INTO featured_products (product_id) VALUES (?) ON CONFLICT DO NOTHING', [req.params.id]);
     return res.json({ status: 'success', message: 'Product featured.' });
   } finally {
     conn.release();
@@ -277,8 +277,8 @@ router.put('/settings/:key', authenticate, requireRole('admin'), async (req: Aut
   const conn = await pool.getConnection();
   try {
     await conn.query(
-      'INSERT INTO platform_settings (`key`, value) VALUES (?, ?) ON DUPLICATE KEY UPDATE value = ?, updated_at = NOW()',
-      [req.params.key, JSON.stringify(value), JSON.stringify(value)]
+      'INSERT INTO platform_settings ("key", value) VALUES (?, ?) ON CONFLICT ("key") DO UPDATE SET value = EXCLUDED.value, updated_at = NOW()',
+      [req.params.key, JSON.stringify(value)]
     );
     return res.json({ status: 'success', message: 'Setting updated.' });
   } finally {
@@ -637,7 +637,7 @@ router.put('/category-requests/:id', authenticate, requireRole('admin'), async (
       const r = requests[0];
       const slug = r.name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
       await conn.query(
-        'INSERT IGNORE INTO categories (name, slug, description) VALUES (?, ?, ?)',
+        'INSERT INTO categories (name, slug, description) VALUES (?, ?, ?) ON CONFLICT (slug) DO NOTHING',
         [r.name, slug, r.description || null]
       );
     }

@@ -121,15 +121,15 @@ router.delete('/:id', authenticate, requireRole('admin'), async (req: AuthReques
     const allIds = [Number(req.params.id), ...subIds];
     const placeholders = allIds.map(() => '?').join(',');
 
-    // Disable FK checks for this operation
-    await conn.query('SET FOREIGN_KEY_CHECKS = 0');
+    // Disable FK constraints for this operation
+    await conn.query('SET session_replication_role = replica');
 
-    // Delete related product data
-    await conn.query(`DELETE pi FROM product_images pi JOIN products p ON pi.product_id = p.id WHERE p.category_id IN (${placeholders})`, allIds);
-    await conn.query(`DELETE po FROM product_offers po JOIN products p ON po.product_id = p.id WHERE p.category_id IN (${placeholders})`, allIds);
-    await conn.query(`DELETE pv FROM product_variants pv JOIN products p ON pv.product_id = p.id WHERE p.category_id IN (${placeholders})`, allIds);
-    await conn.query(`DELETE fp FROM featured_products fp JOIN products p ON fp.product_id = p.id WHERE p.category_id IN (${placeholders})`, allIds);
-    await conn.query(`DELETE w FROM wishlist w JOIN products p ON w.product_id = p.id WHERE p.category_id IN (${placeholders})`, allIds);
+    // Delete related product data using subqueries (PostgreSQL compatible)
+    await conn.query(`DELETE FROM product_images WHERE product_id IN (SELECT id FROM products WHERE category_id IN (${placeholders}))`, allIds);
+    await conn.query(`DELETE FROM product_offers WHERE product_id IN (SELECT id FROM products WHERE category_id IN (${placeholders}))`, allIds);
+    await conn.query(`DELETE FROM product_variants WHERE product_id IN (SELECT id FROM products WHERE category_id IN (${placeholders}))`, allIds);
+    await conn.query(`DELETE FROM featured_products WHERE product_id IN (SELECT id FROM products WHERE category_id IN (${placeholders}))`, allIds);
+    await conn.query(`DELETE FROM wishlist WHERE product_id IN (SELECT id FROM products WHERE category_id IN (${placeholders}))`, allIds);
     await conn.query(`DELETE FROM products WHERE category_id IN (${placeholders})`, allIds);
 
     // Delete subcategories, then parent
@@ -138,12 +138,12 @@ router.delete('/:id', authenticate, requireRole('admin'), async (req: AuthReques
     }
     await conn.query('DELETE FROM categories WHERE id = ?', [req.params.id]);
 
-    // Re-enable FK checks
-    await conn.query('SET FOREIGN_KEY_CHECKS = 1');
+    // Re-enable FK constraints
+    await conn.query('SET session_replication_role = DEFAULT');
 
     return res.json({ status: 'success', message: 'Category, subcategories, and associated products deleted.' });
   } catch (err) {
-    await conn.query('SET FOREIGN_KEY_CHECKS = 1');
+    await conn.query('SET session_replication_role = DEFAULT');
     throw err;
   } finally {
     conn.release();
@@ -231,12 +231,12 @@ searchRouter.post('/history', authenticate, async (req: AuthRequest, res: Respon
   const conn = await pool.getConnection();
   try {
     await conn.query(
-      'INSERT INTO search_history (user_id, term, searched_at) VALUES (?, ?, NOW()) ON DUPLICATE KEY UPDATE searched_at = NOW()',
+      'INSERT INTO search_history (user_id, term, searched_at) VALUES (?, ?, NOW()) ON CONFLICT (user_id, term) DO UPDATE SET searched_at = NOW()',
       [req.user!.userId, term]
     );
     // Enforce 10-term limit
     await conn.query(
-      `DELETE FROM search_history WHERE user_id = ? AND id NOT IN (SELECT id FROM (SELECT id FROM search_history WHERE user_id = ? ORDER BY searched_at DESC LIMIT 10) t)`,
+      `DELETE FROM search_history WHERE user_id = ? AND id NOT IN (SELECT id FROM search_history WHERE user_id = ? ORDER BY searched_at DESC LIMIT 10)`,
       [req.user!.userId, req.user!.userId]
     );
     return res.json({ status: 'success' });

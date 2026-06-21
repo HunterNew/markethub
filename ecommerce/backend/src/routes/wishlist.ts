@@ -52,7 +52,7 @@ router.post('/', authenticate, async (req: AuthRequest, res: Response) => {
   const conn = await pool.getConnection();
   try {
     await conn.query(
-      'INSERT IGNORE INTO wishlist (user_id, product_id) VALUES (?, ?)',
+      'INSERT INTO wishlist (user_id, product_id) VALUES (?, ?) ON CONFLICT DO NOTHING',
       [req.user!.userId, productId]
     );
     return res.json({ status: 'success', message: 'Added to wishlist' });

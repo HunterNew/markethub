@@ -563,7 +563,7 @@ router.post('/send-sms-otp', async (req: Request, res: Response) => {
   const conn = await pool.getConnection();
   try {
     const [settings] = await conn.query(
-      "SELECT value FROM platform_settings WHERE `key` = 'sms_otp_enabled'"
+      "SELECT value FROM platform_settings WHERE \"key\" = 'sms_otp_enabled'"
     ) as any[];
     const smsEnabled = settings.length > 0 && JSON.parse(settings[0].value) === true;
 

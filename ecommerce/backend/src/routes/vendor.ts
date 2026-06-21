@@ -250,7 +250,7 @@ router.delete('/products/:id/offer', authenticate, requireRole('vendor'), async 
     const vendor = await getVendor(conn, req.user!.userId);
     if (!vendor) return res.status(403).json({ status: 'error', message: 'Vendor not found', errors: [] });
     await conn.query(
-      'DELETE po FROM product_offers po JOIN products p ON p.id = po.product_id WHERE po.product_id = ? AND p.vendor_id = ?',
+      'DELETE FROM product_offers WHERE product_id = ? AND product_id IN (SELECT id FROM products WHERE vendor_id = ?)',
       [req.params.id, vendor.id]
     );
     return res.json({ status: 'success', message: 'Offer removed.' });

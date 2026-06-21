@@ -1,44 +1,89 @@
 import fs from 'fs';
 import path from 'path';
 import { Client } from 'pg';
-import mysql from 'mysql2/promise';
 import dotenv from 'dotenv';
 
 dotenv.config();
 
+// Convert MySQL DDL to PostgreSQL DDL
+function convertMySQLToPostgres(sql: string): string {
+  let converted = sql;
+
+  // AUTO_INCREMENT -> SERIAL (handled by changing INT ... AUTO_INCREMENT to SERIAL)
+  converted = converted.replace(/\bINT\b\s*(NOT\s+NULL\s*)?PRIMARY\s+KEY\s+AUTO_INCREMENT/gi, 'SERIAL PRIMARY KEY');
+  converted = converted.replace(/\bINT\b\s+AUTO_INCREMENT\s*(NOT\s+NULL\s*)?PRIMARY\s+KEY/gi, 'SERIAL PRIMARY KEY');
+  converted = converted.replace(/\bINT\b\s+PRIMARY\s+KEY\s+AUTO_INCREMENT/gi, 'SERIAL PRIMARY KEY');
+  converted = converted.replace(/\bINT\b\s+AUTO_INCREMENT/gi, 'SERIAL');
+  converted = converted.replace(/\bBIGINT\b\s+AUTO_INCREMENT/gi, 'BIGSERIAL');
+
+  // Remove ENGINE=InnoDB and other MySQL engine specs
+  converted = converted.replace(/\s*ENGINE\s*=\s*\w+/gi, '');
+  converted = converted.replace(/\s*DEFAULT\s+CHARSET\s*=\s*\w+/gi, '');
+  converted = converted.replace(/\s*COLLATE\s*=?\s*\w+/gi, '');
+  converted = converted.replace(/\s*CHARACTER\s+SET\s+\w+/gi, '');
+
+  // backtick identifiers -> double quotes or just remove them
+  converted = converted.replace(/`([^`]+)`/g, '"$1"');
+
+  // TINYINT(1) -> BOOLEAN
+  converted = converted.replace(/\bTINYINT\s*\(\s*1\s*\)/gi, 'BOOLEAN');
+  converted = converted.replace(/\bTINYINT/gi, 'SMALLINT');
+
+  // DATETIME -> TIMESTAMP
+  converted = converted.replace(/\bDATETIME/gi, 'TIMESTAMP');
+
+  // DOUBLE -> DOUBLE PRECISION
+  converted = converted.replace(/\bDOUBLE\b(?!\s+PRECISION)/gi, 'DOUBLE PRECISION');
+
+  // LONGTEXT, MEDIUMTEXT -> TEXT
+  converted = converted.replace(/\bLONGTEXT/gi, 'TEXT');
+  converted = converted.replace(/\bMEDIUMTEXT/gi, 'TEXT');
+
+  // ENUM(...) -> VARCHAR(50)
+  converted = converted.replace(/\bENUM\s*\([^)]+\)/gi, 'VARCHAR(50)');
+
+  // ON UPDATE CURRENT_TIMESTAMP -> remove
+  converted = converted.replace(/\bON\s+UPDATE\s+CURRENT_TIMESTAMP/gi, '');
+
+  // DEFAULT CURRENT_TIMESTAMP
+  converted = converted.replace(/\bDEFAULT\s+CURRENT_TIMESTAMP/gi, 'DEFAULT NOW()');
+
+  // INSERT IGNORE -> INSERT INTO
+  converted = converted.replace(/INSERT\s+IGNORE\s+INTO/gi, 'INSERT INTO');
+
+  // MODIFY COLUMN -> ALTER COLUMN ... TYPE
+  converted = converted.replace(/MODIFY\s+COLUMN\s+"?(\w+)"?\s+(.+)/gi, 'ALTER COLUMN "$1" TYPE $2');
+
+  // Boolean defaults
+  converted = converted.replace(/\bBOOLEAN\b(.*?)DEFAULT\s+0/gi, 'BOOLEAN$1DEFAULT false');
+  converted = converted.replace(/\bBOOLEAN\b(.*?)DEFAULT\s+1/gi, 'BOOLEAN$1DEFAULT true');
+  converted = converted.replace(/\bBOOLEAN\b(.*?)DEFAULT\s+'0'/gi, 'BOOLEAN$1DEFAULT false');
+  converted = converted.replace(/\bBOOLEAN\b(.*?)DEFAULT\s+'1'/gi, 'BOOLEAN$1DEFAULT true');
+
+  // UNSIGNED - remove
+  converted = converted.replace(/\bUNSIGNED\b/gi, '');
+
+  // FLOAT -> REAL
+  converted = converted.replace(/\bFLOAT\b/gi, 'REAL');
+
+  return converted;
+}
+
 async function migrate() {
-
   const client = new Client({
-  connectionString: process.env.DATABASE_URL,
-  ssl: {
-    rejectUnauthorized: false
-  }
-});
+    connectionString: process.env.DATABASE_URL || 'postgresql://postgres:password@localhost:5432/postgres',
+    ssl: process.env.DB_SSL === 'false' ? false : { rejectUnauthorized: false },
+  });
 
-await client.connect();
-  
-  //const connection = await mysql.createConnection({
-  //  host: process.env.DB_HOST || 'localhost',
-  //  port: parseInt(process.env.DB_PORT || '3306'),
-   // user: process.env.DB_USER || 'root',
-   // password: process.env.DB_PASS || '',
-   // ssl: process.env.DB_SSL === 'true' ? { rejectUnauthorized: true } : undefined,
-    // multipleStatements not needed — statements are executed individually
-  //});
+  await client.connect();
 
   try {
-    // Create database if not exists
-    await connection.query(
-      `CREATE DATABASE IF NOT EXISTS \`${process.env.DB_NAME || 'multivendor_ecommerce'}\``
-    );
-    await connection.query(`USE \`${process.env.DB_NAME || 'multivendor_ecommerce'}\``);
-
     // Create migrations tracking table
-    await connection.query(`
+    await client.query(`
       CREATE TABLE IF NOT EXISTS migrations (
-        id INT PRIMARY KEY AUTO_INCREMENT,
+        id SERIAL PRIMARY KEY,
         filename VARCHAR(255) UNIQUE NOT NULL,
-        executed_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        executed_at TIMESTAMP DEFAULT NOW()
       )
     `);
 
@@ -48,26 +93,40 @@ await client.connect();
     for (const file of files) {
       if (!file.endsWith('.sql')) continue;
 
-      const [rows] = await connection.query(
-        'SELECT id FROM migrations WHERE filename = ?',
+      const result = await client.query(
+        'SELECT id FROM migrations WHERE filename = $1',
         [file]
-      ) as any[];
+      );
 
-      if (rows.length > 0) {
+      if (result.rows.length > 0) {
         console.log(`⏭  Skipping ${file} (already executed)`);
         continue;
       }
 
       console.log(`▶  Running migration: ${file}`);
       const sql = fs.readFileSync(path.join(migrationsDir, file), 'utf-8');
-      const statements = sql
+
+      // Convert MySQL SQL to PostgreSQL
+      const pgSql = convertMySQLToPostgres(sql);
+
+      const statements = pgSql
         .split(/;\s*\n/)
         .map(s => s.replace(/--.*$/gm, '').trim())
         .filter(s => s.length > 0);
+
       for (const stmt of statements) {
-        await connection.query(stmt);
+        try {
+          await client.query(stmt);
+        } catch (err: any) {
+          // Skip errors for things like "already exists"
+          if (err.code === '42P07' || err.code === '42701') {
+            console.log(`  ⚠️  Skipped (already exists): ${err.message.split('\n')[0]}`);
+            continue;
+          }
+          throw err;
+        }
       }
-      await connection.query('INSERT INTO migrations (filename) VALUES (?)', [file]);
+      await client.query('INSERT INTO migrations (filename) VALUES ($1)', [file]);
       console.log(`✅ Completed: ${file}`);
     }
 
@@ -76,7 +135,7 @@ await client.connect();
     console.error('❌ Migration failed:', error);
     process.exit(1);
   } finally {
-    await connection.end();
+    await client.end();
   }
 }
 
