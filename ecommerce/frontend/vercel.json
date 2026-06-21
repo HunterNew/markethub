@@ -2,7 +2,7 @@
   "rewrites": [
     {
       "source": "/api/:path*",
-      "destination": "https://markethub-vful.onrender.com/api/:path*"
+      "destination": "https://markethub-1pvw.onrender.com/api/:path*"
     }
   ]
 }
