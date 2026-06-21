@@ -63,17 +63,17 @@ function convertMySQLToPostgres(sql: string): string {
   // Generic MODIFY COLUMN -> ALTER COLUMN TYPE
   converted = converted.replace(/MODIFY\s+COLUMN\s+"?(\w+)"?\s+(.+)/gi, 'ALTER COLUMN "$1" TYPE $2');
 
+  // ALTER TABLE ADD UNIQUE KEY name (cols) -> ADD UNIQUE (cols) — must be before generic UNIQUE KEY
+  converted = converted.replace(/ADD\s+UNIQUE\s+KEY\s+\w+\s*(\([^)]+\))/gi, 'ADD UNIQUE $1');
+
   // UNIQUE KEY name (cols) inside CREATE TABLE -> UNIQUE (cols)
-  converted = converted.replace(/,?\s*UNIQUE\s+KEY\s+\w+\s*(\([^)]+\))/gi, ', UNIQUE $1');
+  converted = converted.replace(/,\s*UNIQUE\s+KEY\s+\w+\s*(\([^)]+\))/gi, ', UNIQUE $1');
 
   // INDEX idx_name (cols) inside CREATE TABLE -> remove (create index separately if needed)
   converted = converted.replace(/,?\s*INDEX\s+\w+\s*\([^)]+\)/gi, '');
 
   // KEY idx_name (cols) inside CREATE TABLE -> remove
   converted = converted.replace(/,?\s*KEY\s+\w+\s*\([^)]+\)/gi, '');
-
-  // ALTER TABLE ADD UNIQUE KEY name (cols) -> ALTER TABLE ADD UNIQUE (cols)  
-  converted = converted.replace(/ADD\s+UNIQUE\s+KEY\s+\w+\s*(\([^)]+\))/gi, 'ADD UNIQUE $1');
 
   // Boolean defaults: DEFAULT 0/1 -> DEFAULT false/true
   converted = converted.replace(/\bBOOLEAN\b(.*?)DEFAULT\s+0/gi, 'BOOLEAN$1DEFAULT false');
