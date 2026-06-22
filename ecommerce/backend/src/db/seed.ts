@@ -25,7 +25,7 @@ async function seed() {
     ];
     for (const table of tables) {
       try {
-        await client.query(`TRUNCATE TABLE ${table} CASCADE`);
+        await client.query(`TRUNCATE TABLE ${table} RESTART IDENTITY CASCADE`);
       } catch {
         // Table might not exist yet
       }
@@ -35,14 +35,14 @@ async function seed() {
     const vendorHash = await bcrypt.hash('vendor123', 10);
     const customerHash = await bcrypt.hash('customer123', 10);
 
-    // Users
+    // Users - use explicit IDs to ensure FK references work
     await client.query(
-      `INSERT INTO users (email, password_hash, role, first_name, last_name, wholesale_eligible) VALUES
-      ($1, $2, 'admin', 'Admin', 'User', false),
-      ($3, $4, 'vendor', 'Alice', 'Smith', false),
-      ($5, $6, 'vendor', 'Bob', 'Johnson', false),
-      ($7, $8, 'customer', 'Carol', 'Williams', true),
-      ($9, $10, 'customer', 'David', 'Brown', false)
+      `INSERT INTO users (id, email, password_hash, role, first_name, last_name, wholesale_eligible) VALUES
+      (1, $1, $2, 'admin', 'Admin', 'User', false),
+      (2, $3, $4, 'vendor', 'Alice', 'Smith', false),
+      (3, $5, $6, 'vendor', 'Bob', 'Johnson', false),
+      (4, $7, $8, 'customer', 'Carol', 'Williams', true),
+      (5, $9, $10, 'customer', 'David', 'Brown', false)
       ON CONFLICT (email) DO NOTHING`,
       [
         'admin@marketplace.com', adminHash,
@@ -52,6 +52,9 @@ async function seed() {
         'customer2@email.com', customerHash,
       ]
     );
+
+    // Reset user sequence
+    await client.query(`SELECT setval('users_id_seq', 5, true)`);
 
     // Vendors
     await client.query(
