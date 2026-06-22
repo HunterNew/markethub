@@ -18,10 +18,23 @@ function convertPlaceholders(sql: string): string {
 // Convert MySQL-specific SQL to PostgreSQL-compatible SQL
 function convertSQL(sql: string): string {
   let converted = sql;
+
+  // Convert double-quoted string values to single quotes BEFORE backtick conversion
+  // Match "word" patterns that are SQL string values (not identifiers)
+  // These appear after =, IN (, LIKE, !=, SET col =, VALUES(, THEN, WHEN, etc.
+  converted = converted.replace(
+    /(=\s*|IN\s*\(|,\s*|THEN\s+|WHEN\s+|!=\s*|<>\s*)"([^"]*?)"/gi,
+    (match, prefix, value) => `${prefix}'${value}'`
+  );
+  // Handle remaining double-quoted strings inside IN(...) that weren't caught
+  converted = converted.replace(/\bIN\s*\(([^)]+)\)/gi, (match, inner) => {
+    const fixed = inner.replace(/"([^"]*?)"/g, "'$1'");
+    return `IN (${fixed})`;
+  });
+
   // INSERT IGNORE -> INSERT ... ON CONFLICT DO NOTHING
   converted = converted.replace(/INSERT\s+IGNORE\s+INTO/gi, 'INSERT INTO');
   if (/INSERT\s+IGNORE/i.test(sql)) {
-    // Only add ON CONFLICT DO NOTHING if not already present
     if (!/ON\s+CONFLICT/i.test(converted)) {
       converted = converted.replace(/(\)\s*)$/, '$1 ON CONFLICT DO NOTHING');
     }
